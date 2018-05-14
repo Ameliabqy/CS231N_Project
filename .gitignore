@@ -22,3 +22,5 @@
 *.jpg
 *.png
 *.txt
+*.csv
+*.ipynb_checkpoints/*
