@@ -18,6 +18,8 @@ import glob
 import math
 import random
 import timeit
+import matplotlib
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import matplotlib.pyplot as plt
 import os.path as osp
 import numpy as np
