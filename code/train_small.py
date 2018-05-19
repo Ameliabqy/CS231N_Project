@@ -18,8 +18,6 @@ import glob
 import math
 import random
 import timeit
-import matplotlib
-matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import matplotlib.pyplot as plt
 import os.path as osp
 import numpy as np
@@ -33,7 +31,7 @@ from tensorflow.python.keras.applications import vgg16, inception_v3, resnet50, 
 from tensorflow.python.keras.applications.vgg16 import VGG16
 from tensorflow.python.keras.applications.inception_v3 import InceptionV3
 
-# get_ipython().run_line_magic('matplotlib', 'inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 CUDA_VISIBLE_DEVICES=0
 
 
@@ -56,7 +54,7 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Momentum, Adam, Adagrad
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-5
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
@@ -71,6 +69,10 @@ class HyperParameters:
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
+
+	# Graph saving params
+	self.save_model = True
+	self.use_saved_model = False
   
         
               
@@ -309,7 +311,7 @@ def print_memory():
 
 def check_accuracy(session, outputs, labels):
     int_outputs = np.squeeze(outputs.astype(int))
-    bool_arr = np.equal(int_outputs, np.squeeze(labels))
+    bool_arr = np.equal(int_outputs, np.squeeze(labels)).astype(int)
     print("shape is:", bool_arr.shape)
 #     print("raw images min: ", np.amin(outputs))
 #     print("raw images max: ", np.amax(outputs))
@@ -327,32 +329,28 @@ def check_accuracy(session, outputs, labels):
     mean_list = np.mean(bool_arr, axis=(1,2))
     best_pair = np.argmax(mean_list, axis=0)
     
-    print("mean list")
-    print(mean_list.shape)
+    print("means list")
     print(mean_list)
-    
-    print("best pair")
-    print(best_pair.shape)
-    print(best_pair)
 
-    result = session.run(labels[best_pair]/tf.reduce_max(labels[best_pair]))
-    plt.imshow(result, cmap='gray')
-    plt.show()
+#     result = session.run(labels[best_pair]/tf.reduce_max(labels[best_pair]))
+#     plt.imshow(result, cmap='gray')
+#     plt.show()
 #     plt.figure
-#     result = session.run(labels[best_pair])
+#     result = session.run(tf.convert_to_tensor(labels[best_pair]))
 #     plt.imshow(result)
 #     plt.show()
     
-    plt.figure
-    result = session.run(outputs[best_pair]/tf.reduce_max(outputs[best_pair]))
-    plt.imshow(result, cmap='gray')
-    plt.show()
 #     plt.figure
-#     result = session.run(outputs[best_pair])
+#     result = session.run(outputs[best_pair]/tf.reduce_max(outputs[best_pair]))
+#     plt.imshow(result, cmap='gray')
+#     plt.show()
+#     plt.figure
+#     result = session.run(tf.convert_to_tensor(outputs[best_pair]))
 #     plt.imshow(result)
 #     plt.show()
     
-    return np.mean(bool_arr)
+    return np.count_nonzero(bool_arr)/np.size(bool_arr)
+# np.mean(bool_arr)
 
 
 # ## Define Net
@@ -393,36 +391,36 @@ def create_model(inputs, is_training):
         
         tf.keras.layers.Conv2D(12, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
-        tf.keras.layers.Conv2D(15, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(16, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 
         tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides = (2, 2), padding = "valid"),
         
-        tf.keras.layers.Conv2D(20, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(24, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
-        tf.keras.layers.Conv2D(25, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(32, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
         
         tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides = (2, 2), padding = "valid"),
         
-        tf.keras.layers.Conv2D(32, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(64, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
-        tf.keras.layers.Conv2D(32, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(64, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 
         # Upsampling layers
         tf.keras.layers.UpSampling2D(size=(2, 2)),
         
-        tf.keras.layers.Conv2D(25, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(32, (3, 3), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
         
         tf.keras.layers.UpSampling2D(size=(2, 2)),
         tf.keras.layers.ZeroPadding2D(padding=((0,1),(1,1))),
         
-        tf.keras.layers.Conv2D(20, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(24, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 #         tf.keras.layers.PReLU(alpha_initializer = initializer, alpha_regularizer = regularizer),
-        tf.keras.layers.Conv2D(15, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
+        tf.keras.layers.Conv2D(16, (5, 5), kernel_initializer = initializer, padding = "SAME", kernel_regularizer=regularizer),
         tf.keras.layers.LeakyReLU(alpha=0.1),
 #         tf.keras.layers.PReLU(alpha_initializer = initializer, alpha_regularizer = regularizer),
         
@@ -506,6 +504,7 @@ def train_net(hp, data_set, create_model, create_optimizer):
         # the data and labels
         x = tf.placeholder(hp.data_type, [None, 2710, 3384, 3])
         y = tf.placeholder(np.dtype('int32'), [None, 2710, 3384])
+#         y = tf.placeholder(hp.data_type, [None, 2710, 3384])
         
         # We need a place holder to explicitly specify if the model is in the training
         # phase or not. This is because a number of layers behaves differently in
@@ -518,8 +517,10 @@ def train_net(hp, data_set, create_model, create_optimizer):
         
         # Full loss type is better
         if hp.loss_type == "full":
-#             loss = radio.models.keras.losses.tversky_loss(y, output, alpha=0.3, beta=0.7, smooth=1e-10)
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=output, labels=y, dim=0))
+#             loss = tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=output, targets=y, pos_weight=10))
+
+#             loss = 1/tf.reduce_mean(tf.cast(tf.equal(tf.cast(tf.squeeze(output), tf.int32), tf.squeeze(y)), tf.int32))
         if hp.loss_type == "fast":
             loss = tf.reduce_mean(tf.square(y - output))
 #             loss = tf.reduce_mean(y - output)
@@ -546,15 +547,21 @@ def train_net(hp, data_set, create_model, create_optimizer):
     
     import psutil
     
+    if hp.save_model:
+	saver = tf.train.Saver()
+
 #     data_iterator = data_set.__iter__()
     train_images = []
     train_labels = []
-    
     train_output = None
     
     with tf.Session() as sess:
+	if hp.use_saved_model:
+  	    new_saver = tf.train.import_meta_graph('my_test_model-1000.meta')
+  	    new_saver.restore(sess, tf.train.latest_checkpoint('./'))
         print("\nStarting training loop...\n")
         sess.run(tf.global_variables_initializer())
+	save_flag = False
         for epoch in range(hp.num_epochs):
 #             print_memory()
 #             print('Memory stats:', psutil.virtual_memory())
@@ -567,8 +574,12 @@ def train_net(hp, data_set, create_model, create_optimizer):
             accuracy = check_accuracy(sess, train_output, train_labels)
             print('Batch %d  |  Loss = %.4f  |  Accuracy = %.4f\n' % (epoch, loss_value, accuracy))
             gc.collect()
-            
-            
+            if hp.save_model:
+		if not save_flag:
+		    save_flag = True
+		    saver.save(sess, 'model')
+            	else:
+		    saver.save(sess,'model', write_meta_graph=False)
             
     data_set.reset_data_set()
     
