@@ -13,26 +13,74 @@ from PIL import Image
 class DownUp(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 10, (3, 3), padding=1, bias=True)
+        self.conv1 = nn.Conv2d(3, 5, (3, 3), padding=1, bias=True)
         nn.init.kaiming_normal_(self.conv1.weight)
         nn.init.constant_(self.conv1.bias, 0)
         
         self.pool1 = nn.MaxPool2d((4, 4), stride=(4, 4), padding = 1)
         
-        self.conv2 = nn.Conv2d(10, 20, (3, 3), padding=1, bias=True)
+        self.conv2 = nn.Conv2d(5, 12, (3, 3), padding=1, bias=True)
         nn.init.kaiming_normal_(self.conv2.weight)
         nn.init.constant_(self.conv2.bias, 0)
         
-        
-        self.up1 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
-        
-        self.conv3 = nn.Conv2d(20, 10, (3, 3), padding=1, bias=True)
+        self.conv3 = nn.Conv2d(12, 16, (3, 3), padding=1, bias=True)
         nn.init.kaiming_normal_(self.conv3.weight)
         nn.init.constant_(self.conv3.bias, 0)
         
-        self.conv4 = nn.Conv2d(10, 1, (3, 3), padding=(0,1), bias=True)
+        self.pool2 = nn.MaxPool2d((2, 2), stride=(2, 2), padding = 1)
+        
+        self.conv4 = nn.Conv2d(16, 24, (3, 3), padding=1, bias=True)
         nn.init.kaiming_normal_(self.conv4.weight)
         nn.init.constant_(self.conv4.bias, 0)
+        
+        self.conv5 = nn.Conv2d(24, 32, (3, 3), padding=1, bias=True)
+        nn.init.kaiming_normal_(self.conv5.weight)
+        nn.init.constant_(self.conv5.bias, 0)
+        
+        self.pool3 = nn.MaxPool2d((2, 2), stride=(2, 2), padding = 1)
+        
+        self.conv6 = nn.Conv2d(32, 64, (3, 3), padding=1, bias=True)
+        nn.init.kaiming_normal_(self.conv6.weight)
+        nn.init.constant_(self.conv6.bias, 0)
+        
+        self.conv7 = nn.Conv2d(64, 64, (3, 3), padding=1, bias=True)
+        nn.init.kaiming_normal_(self.conv7.weight)
+        nn.init.constant_(self.conv7.bias, 0)
+        
+        
+        
+        
+        self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        
+        self.conv8 = nn.Conv2d(64, 64, (3, 3), padding=1, bias=True)
+        nn.init.kaiming_normal_(self.conv8.weight)
+        nn.init.constant_(self.conv8.bias, 0)
+        
+        self.conv9 = nn.Conv2d(64, 32, (3, 3), padding=0, bias=True)
+        nn.init.kaiming_normal_(self.conv9.weight)
+        nn.init.constant_(self.conv9.bias, 0)
+        
+        self.up2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        
+        self.conv10 = nn.Conv2d(32, 24, (3, 3), padding=0, bias=True)
+        nn.init.kaiming_normal_(self.conv10.weight)
+        nn.init.constant_(self.conv10.bias, 0)
+        
+        self.conv11 = nn.Conv2d(24, 16, (3, 3), padding=1, bias=True)
+        nn.init.kaiming_normal_(self.conv11.weight)
+        nn.init.constant_(self.conv11.bias, 0)
+        
+        self.up3 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
+        
+        self.conv12 = nn.Conv2d(16, 8, (3, 3), padding=(1, 2), bias=True)
+        nn.init.kaiming_normal_(self.conv12.weight)
+        nn.init.constant_(self.conv12.bias, 0)
+        
+        self.conv13 = nn.Conv2d(8, 3, (3, 3), padding=0, bias=True)
+        nn.init.kaiming_normal_(self.conv13.weight)
+        nn.init.constant_(self.conv13.bias, 0)
+        
+        
         
         
         
@@ -40,18 +88,21 @@ class DownUp(nn.Module):
     def forward(self, x):
         scores = None
         # Downsample
-        layer1 = self.conv1(x)
-        layer2 = F.relu(layer1)
-        layer3 = self.pool1(layer2)
-        layer4 = self.conv2(layer3)
-        layer5 = F.relu(layer4)
-#         Down = F.relu(self.conv2(self.pool1(F.relu(self.conv1(x)))))
+#         layer1 = self.conv1(x)
+#         layer2 = F.relu(layer1)
+#         layer3 = self.pool1(layer2)
+#         layer4 = self.conv2(layer3)
+#         layer5 = F.relu(layer4)
+        Down1 = (self.pool2(F.relu(self.conv3(F.relu(self.conv2(self.pool1(F.relu(self.conv1(x)))))))))
+        Down2 = F.relu(self.conv7(F.relu(self.conv6(self.pool3(self.conv5(F.relu(self.conv4(Down1))))))))
         
-        layer6 = self.up1(layer5)
-        layer7 = self.conv3(layer6)
-        layer8 = F.relu(layer7)
-        scores = self.conv4(layer8)
-#         scores = self.conv4(F.relu(self.conv3(self.up1(layer5))))
+        
+#         layer6 = self.up1(layer5)
+#         layer7 = self.conv3(layer6)
+#         layer8 = F.relu(layer7)
+#         scores = self.conv4(layer8)
+        Up1 = F.relu(self.conv10(self.up2((F.relu(self.conv9(F.relu(self.conv8(self.up1(Down2)))))))))
+        scores = F.relu(self.conv13(F.relu(self.conv12(self.up3((F.relu(self.conv11(Up1))))))))
         
         return scores
 

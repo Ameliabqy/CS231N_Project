@@ -13,6 +13,8 @@ from PIL import Image
 
 import matplotlib.pyplot as plt
 
+class_defines = torch.tensor([33, 34, 35, 36, 37, 38, 39, 40, 0, 1, 17, 161, 162, 163, 164, 165, 166, 167, 168, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113], dtype = torch.int64)
+
 class HyperParameters:
     """
     Object to hold all hyperparameters. Makes passing parameters between functions easier.
@@ -22,7 +24,8 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float32
-        self.root = '../data/cvpr-2018-autonomous-driving/train_color'
+        self.train_root = '../data/cvpr-2018-autonomous-driving/train_color'
+        self.val_root = '../data/cvpr-2018-autonomous-driving/val_color'
         self.device = '/cpu:0'
         
         # Training params
@@ -33,7 +36,7 @@ class HyperParameters:
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 30  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 3  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
@@ -53,10 +56,9 @@ class CVPR(Dataset):
     """
     A customized data loader for CVPR.
     """
-    def __init__(self,
-                 hp,
+    def __init__(self, hp,
                  transform=None,
-                 preload=False):
+                 preload=False, train_sel = True):
         """ Intialize the CVPR dataset
         
         Args:
@@ -70,7 +72,12 @@ class CVPR(Dataset):
         self.images = None
         self.labels = None
         self.filenames = []
-        self.root = hp.root
+        if train_sel:
+            self.root = hp.train_root
+            self.train = True
+        else:
+            self.root = hp.val_root
+            self.train = False
         self.transform = transform
 
         # read filenames
@@ -181,6 +188,32 @@ class CVPR(Dataset):
         gc.collect()
         self.images = []
         self.labels = []
-        
 
-    
+def Crop(x, lim_indices):
+    hmin, hmax, wmin, wmax = lim_indices
+    x.data = x.data[:,:,hmin : hmax, wmin : wmax]
+    return x
+
+def ConvertLabels(labels):
+    N = labels.shape[0]
+    H = labels.shape[2]
+    W = labels.shape[3]
+    converted_labels = torch.zeros([N, 35, H*W], dtype=torch.int64)
+    flatten_labels = labels.contiguous().view(N, -1)
+    choose_class = 3
+    for i in range(0, choose_class):
+        flatten_labels.data /= 1000
+        converted_labels[:, i, :] = flatten_labels.type_as(class_defines) == class_defines[i]
+    converted_labels = converted_labels[:,0:choose_class,:].view(N, choose_class, H, W).to(torch.float32)
+    return converted_labels
+        
+def ReverseConvertLabels(labels):
+    N, C, H, W = labels.shape
+    converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
+    for i in range(C):
+        converted_labels += labels[:, i, :, :].type_as(class_defines) * class_defines[i] * 1000
+    unlabeled = converted_labels == 0
+    converted_labels += unlabeled.type_as(converted_labels) * 255
+    return converted_labels
+        
+        
