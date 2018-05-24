@@ -24,8 +24,8 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float32
-        self.train_root = '../data/cvpr-2018-autonomous-driving/train_color'
-        self.val_root = '../data/cvpr-2018-autonomous-driving/val_color'
+        self.train_root = '../data/cvpr-2018-autonomous-driving/cropped_train_color'
+        self.val_root = '../data/cvpr-2018-autonomous-driving/cropped_val_color'
         self.device = '/cpu:0'
         
         # Training params
@@ -41,7 +41,7 @@ class HyperParameters:
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = True
-        self.batch_size = 10
+        self.batch_size = 3
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong

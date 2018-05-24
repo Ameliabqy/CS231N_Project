@@ -1,5 +1,6 @@
 from cvpr import *
 from DownUp import *
+from ResNet import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -22,7 +23,7 @@ if hp.preload:
         preload=True, transform=transforms.ToTensor(), train_sel = True
     )
     # Use the torch dataloader to iterate through the dataset
-    trainset_loader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1)
+    trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
     
 #     valset = CVPR(hp,
 #         preload=True, transform=transforms.ToTensor(), train_sel = False
@@ -89,6 +90,7 @@ def check_accuracy(loader, model):
         
 def train(model, create_optimizer, epochs=1):
     model = model.to(device=device)  # move the model parameters to CPU/GPU
+    print('start training ')
     if hp.num_epochs:
         epochs = hp.num_epochs
     for e in range(epochs):
@@ -124,5 +126,6 @@ def train(model, create_optimizer, epochs=1):
 
 
 learning_rate = 1e-2
-model = DownUp()
+# model = DownUp()
+model = resnet18
 train(model, create_optimizer)
