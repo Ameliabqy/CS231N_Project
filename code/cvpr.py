@@ -32,16 +32,16 @@ class HyperParameters:
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
         self.learning_rate = 1e-5
         self.lr_decay = 0.99
-        self.loss_type = "fast"  # options: "fast", "full"
+        self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 3  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 10  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = True
-        self.batch_size = 3
+        self.batch_size = 50
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
@@ -211,7 +211,7 @@ def ReverseConvertLabels(labels):
     N, C, H, W = labels.shape
     converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
     for i in range(C):
-        converted_labels += labels[:, i, :, :].type_as(class_defines) * class_defines[i] * 1000
+        converted_labels[:, 0, :, :] += labels[:, i, :, :].type_as(class_defines) * class_defines[i] * 1000
     unlabeled = converted_labels == 0
     converted_labels += unlabeled.type_as(converted_labels) * 255
     return converted_labels

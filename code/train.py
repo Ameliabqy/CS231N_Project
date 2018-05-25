@@ -1,6 +1,6 @@
 from cvpr import *
 from DownUp import *
-from ResNet import *
+from ResNet50DownUp import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -78,8 +78,10 @@ def check_accuracy(loader, model):
         for x, y in loader:
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
+            y /= 1000
             preds = model(x)
-            preds = ReverseConvertLabels(preds)
+            preds = preds.clamp(min = 0, max = 1)
+#             preds = ReverseConvertLabels(preds)
             num_correct += (preds.type_as(y) == y).sum()
             num_samples += y.numel()
             print('in loop')
@@ -98,13 +100,16 @@ def train(model, create_optimizer, epochs=1):
             model.train()  # put model to training mode
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
-            y = ConvertLabels(y)
+            y /= 1000;
+#             y = ConvertLabels(y)
 
             scores = model(x)
             
-            if hp.loss_type == "fast":
-                loss = F.mse_loss(scores, y)
-                
+            if hp.loss_type == "full":
+                loss_func = F.torch.nn.BCELoss()
+                scores = scores.clamp(min = 0, max = 1)
+                loss = loss_func(scores.squeeze(), y.squeeze())
+#             loss = (y - scores).sum()
             optimizer = create_optimizer(model, hp)
 
             # Zero out all of the gradients for the variables which the optimizer
@@ -126,6 +131,6 @@ def train(model, create_optimizer, epochs=1):
 
 
 learning_rate = 1e-2
-# model = DownUp()
-model = resnet18
+model = DownUp()
+# model = ResNet50()
 train(model, create_optimizer)
