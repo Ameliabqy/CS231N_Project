@@ -194,19 +194,19 @@ def Crop(x, lim_indices):
     x.data = x.data[:,:,hmin : hmax, wmin : wmax]
     return x
 
+
 def ConvertLabels(labels):
-    N = labels.shape[0]
-    H = labels.shape[2]
-    W = labels.shape[3]
-    converted_labels = torch.zeros([N, 35, H*W], dtype=torch.int64)
-    flatten_labels = labels.contiguous().view(N, -1)
-    choose_class = 3
-    for i in range(0, choose_class):
-        flatten_labels.data /= 1000
-        converted_labels[:, i, :] = flatten_labels.type_as(class_defines) == class_defines[i]
-    converted_labels = converted_labels[:,0:choose_class,:].view(N, choose_class, H, W).to(torch.float32)
+    N, _, H, W = labels.shape
+    C = 35
+    converted_labels = torch.zeros([N, C, H, W], dtype=torch.int64)
+    new_labels = labels.div(1000).type_as(class_defines)
+    for i in range(C):
+        mask = torch.eq(new_labels.type_as(class_defines), class_defines[i])
+        converted_labels[:, i, :, :] = mask.view(N, H, W)
     return converted_labels
         
+    
+    
 def ReverseConvertLabels(labels):
     N, C, H, W = labels.shape
     converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)

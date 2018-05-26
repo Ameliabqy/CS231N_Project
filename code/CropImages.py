@@ -46,7 +46,7 @@ if __name__ == '__main__':
                 indices = np.where(label2np == choice)
                 y = indices[0][0]
                 x = indices[1][0]
-                crop_coord = (x-200, y-200, x+300, y+300)
+                crop_coord = (x-200, y-200, x+200, y+200)
                 crop(os.path.join(image, filename), crop_coord, os.path.join(saved_location, filename))
                 crop(os.path.join(image_label, label_filename), crop_coord, os.path.join(saved_location_label, label_filename))
                 index += 1
