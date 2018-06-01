@@ -59,10 +59,10 @@ if __name__ == '__main__':
                 crop(os.path.join(image, filename), crop_coord, os.path.join(saved_location, filename))
                 crop(os.path.join(image_label, label_filename), crop_coord, os.path.join(saved_location_label, label_filename))
                 convert_labels(os.path.join(saved_location_label, label_filename))
-                index += 1
-            if (index == NumCrop):
-                break
-        else:
-            continue
+#                index += 1
+#            if (index == NumCrop):
+#                break
+#        else:
+#            continue
             
             

@@ -7,6 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
+import torchvision.utils
 from torch.utils.data import Dataset, DataLoader
 import glob
 import os.path as osp
@@ -70,11 +71,12 @@ def create_optimizer(model, hp):
 
 def check_accuracy(loader, model):
     if loader.dataset.train:
-        print('Checking accuracy on validation set')
+        print('Checking accuracy on train set')
     else:
-        print('Checking accuracy on test set')   
+        print('Checking accuracy on validation set')   
     num_correct = 0
     num_samples = 0
+    index = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
@@ -84,12 +86,19 @@ def check_accuracy(loader, model):
             preds = model(x)
             preds = preds.cuda()
             preds = ConvertOutputToLabels(preds)
+            preds.int()
+            N, H, W = preds.shape
+       
+            torchvision.utils.save_image(preds.view(N, 1, H, W), filename="Preds.png")
             
-            y = y.div(1000).to(torch.int64)
             y = y.cuda()
+            torchvision.utils.save_image(y.view(N, 1, H, W), filename="Truth.png")
             
             num_correct += (preds.type_as(y) == y).sum()
             num_samples += y.numel()
+            index += 1
+            if index > 3:
+                break
             print('in loop')
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
@@ -134,6 +143,7 @@ def train(model, create_optimizer, epochs=1):
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
                 check_accuracy(trainset_loader, model)
                 print()
+                break
 
 
 learning_rate = 1e-2

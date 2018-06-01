@@ -80,6 +80,8 @@ class DownUp(nn.Module):
         nn.init.kaiming_normal_(self.conv13.weight)
         nn.init.constant_(self.conv13.bias, 0)
         
+        self.softmax = nn.LogSoftmax(dim=1)
+        
         
         
         
@@ -103,7 +105,7 @@ class DownUp(nn.Module):
         layer10 = self.up2(layer9)
         layer11 = F.relu(self.conv11(F.relu(self.conv10(layer10))))
         layer12 = self.up3(layer11)
-        scores = F.sigmoid(self.conv13(F.relu(self.conv12(layer12))))
+        scores = self.softmax(self.conv13(F.relu(self.conv12(layer12))))
 
 
 # used before image cropping i think
