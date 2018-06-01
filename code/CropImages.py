@@ -18,6 +18,15 @@ def crop(image_path, coords, saved_location):
     cropped_image = image_obj.crop(coords)
     cropped_image.save(saved_location)
     cropped_image.show()
+    
+    
+# divides labels by 1000 to get rid of instance numbers
+def convert_labels(label_path):
+    label_obj = Image.open(label_path)
+    label2np = np.asarray(label_obj, dtype="int32" )
+    new_label = label2np // 1000
+    image = Image.fromarray(new_label, 'I')
+    image.save(label_path)
  
  
 if __name__ == '__main__':
@@ -42,13 +51,14 @@ if __name__ == '__main__':
             label2np = np.asarray(label, dtype="int32" )
             if np.unique(label2np).shape[0] > 1:
                 choice = random.choice(np.delete(np.unique(label2np), 0))
-                print(choice)
+#                 print(choice)
                 indices = np.where(label2np == choice)
                 y = indices[0][0]
                 x = indices[1][0]
                 crop_coord = (x-200, y-200, x+200, y+200)
                 crop(os.path.join(image, filename), crop_coord, os.path.join(saved_location, filename))
                 crop(os.path.join(image_label, label_filename), crop_coord, os.path.join(saved_location_label, label_filename))
+                convert_labels(os.path.join(saved_location_label, label_filename))
                 index += 1
             if (index == NumCrop):
                 break
