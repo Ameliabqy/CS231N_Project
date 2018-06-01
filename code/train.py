@@ -78,10 +78,12 @@ def check_accuracy(loader, model):
         for x, y in loader:
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
-#             y /= 1000
+            
             preds = model(x)
-#             preds = preds.clamp(min = 0, max = 1)
             preds = ReverseConvertLabels(preds)
+            
+            y = y.div(1000).to(torch.int64)
+            
             num_correct += (preds.type_as(y) == y).sum()
             num_samples += y.numel()
             print('in loop')
@@ -101,14 +103,14 @@ def train(model, create_optimizer, epochs=1):
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
             
-            y = ConvertLabels(y).to(torch.float32)
+            y, weights = ConvertCELabels(y)
+            y = y.to(torch.long)
             scores = model(x)
             
+            
             if hp.loss_type == "full":
-                loss_func = F.torch.nn.BCELoss()
-#                 scores = scores.clamp(min = 0, max = 1)
+                loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
-#             loss = torch.sum(y - scores)
             optimizer = create_optimizer(model, hp)
 
             # Zero out all of the gradients for the variables which the optimizer

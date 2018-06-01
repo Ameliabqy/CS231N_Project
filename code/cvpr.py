@@ -14,6 +14,8 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 class_defines = torch.tensor([33, 34, 35, 36, 37, 38, 39, 40, 0, 1, 17, 161, 162, 163, 164, 165, 166, 167, 168, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113], dtype = torch.int64)
+weights = torch.ones(class_defines.shape, dtype=torch.float32)
+weights[8] = 0.01
 
 class HyperParameters:
     """
@@ -206,14 +208,37 @@ def ConvertLabels(labels):
     return converted_labels
         
     
+# makes labels for training with cross entropy loss
+def ConvertCELabels(labels):
+    N, _, H, W = labels.shape
+    C = 35
+    converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
+    new_labels = labels.div(1000).type_as(class_defines)
+    for c in range(C):
+        mask = torch.eq(new_labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
+        converted_labels += mask.view(N, H, W) * c
+    return converted_labels, weights
+
+
+# makes reverted labels for training with cross entropy loss
+def ReverseConvertCELabels(labels):
+    N, C, H, W = labels.shape
+    converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
+    for c in range(C):
+        converted_labels[:, 0, :, :] += torch.eq(labels, c).type_as(class_defines) * class_defines[c] * 1000
+    unlabeled = converted_labels == 0
+    converted_labels += unlabeled.type_as(converted_labels) * 255
+    return converted_labels
+    
+    
     
 def ReverseConvertLabels(labels):
     N, C, H, W = labels.shape
     converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
     for i in range(C):
         converted_labels[:, 0, :, :] += labels[:, i, :, :].type_as(class_defines) * class_defines[i] * 1000
-    unlabeled = converted_labels == 0
-    converted_labels += unlabeled.type_as(converted_labels) * 255
+#     unlabeled = converted_labels == 0
+#     converted_labels += unlabeled.type_as(converted_labels) * 255
     return converted_labels
         
         
