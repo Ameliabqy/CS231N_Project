@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 # Change this for how many pictures to generate 
-NumCrop = 150
+NumCrop = 1000
 
 def crop(image_path, coords, saved_location):
     """
@@ -23,9 +23,9 @@ def crop(image_path, coords, saved_location):
 # divides labels by 1000 to get rid of instance numbers
 def convert_labels(label_path):
     label_obj = Image.open(label_path)
-    label2np = np.asarray(label_obj, dtype="int32" )
-    new_label = label2np // 1000
-    image = Image.fromarray(new_label, 'I')
+    label2np = np.asarray(label_obj, dtype="int32")
+    new_label = (label2np // 1000).astype("int8")
+    image = Image.fromarray(new_label, mode='P')
     image.save(label_path)
  
  
