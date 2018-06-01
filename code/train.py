@@ -13,6 +13,12 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
+# Use GPU if available, otherwise stick with cpu
+use_cuda = torch.cuda.is_available()
+torch.manual_seed(123)
+device = torch.device('cuda' if use_cuda else "cpu")
+print(device)
+
 hp = HyperParameters()
 
 # Create the CVPR dataset. 
@@ -31,11 +37,7 @@ if hp.preload:
 #     # Use the torch dataloader to iterate through the dataset
 #     valset_loader = DataLoader(valset, batch_size=1, shuffle=True, num_workers=1)
 
-# Use GPU if available, otherwise stick with cpu
-use_cuda = torch.cuda.is_available()
-torch.manual_seed(123)
-device = torch.device(cuda if use_cuda else "cpu")
-print(device)
+
 
 # data = np.asarray( trainset.labels[4], dtype="int32" )
 # print(np.where(data == 33000))
@@ -80,9 +82,11 @@ def check_accuracy(loader, model):
             y = y.to(device=device, dtype=hp.dtype)
             
             preds = model(x)
-            preds = ReverseConvertLabels(preds)
+            preds = preds.cuda()
+            preds = ConvertOutputToLabels(preds)
             
             y = y.div(1000).to(torch.int64)
+            y = y.cuda()
             
             num_correct += (preds.type_as(y) == y).sum()
             num_samples += y.numel()
@@ -104,7 +108,8 @@ def train(model, create_optimizer, epochs=1):
             y = y.to(device=device, dtype=hp.dtype)
             
             y, weights = ConvertCELabels(y)
-            y = y.to(torch.long)
+            y = y.cuda()
+            weights = weights.cuda()
             scores = model(x)
             
             

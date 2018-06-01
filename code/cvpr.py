@@ -25,10 +25,10 @@ class HyperParameters:
     """
     def __init__(self):
         # General params
-        self.dtype = torch.float32
+        self.dtype = torch.float
         self.train_root = '../data/cvpr-2018-autonomous-driving/cropped_train_color'
         self.val_root = '../data/cvpr-2018-autonomous-driving/cropped_val_color'
-        self.device = '/cpu:0'
+        self.device = '/cuda:0'
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
@@ -197,25 +197,37 @@ def Crop(x, lim_indices):
     return x
 
 
+# takes tensor of size N x C x H x W, 
 def ConvertLabels(labels):
     N, _, H, W = labels.shape
     C = 35
     converted_labels = torch.zeros([N, C, H, W], dtype=torch.int64)
-    new_labels = labels.div(1000).type_as(class_defines)
     for i in range(C):
-        mask = torch.eq(new_labels.type_as(class_defines), class_defines[i])
+        mask = torch.eq(labels.type_as(class_defines), class_defines[i])
         converted_labels[:, i, :, :] = mask.view(N, H, W)
     return converted_labels
-        
+       
+    
+# converts output of forward pass to label format
+# takes tensor of size N x C x H x W with last layer sigmoid for classes, gets the maximum category
+# and converts that category to original labels
+def ConvertOutputToLabels(output):
+    N, C, H, W = output.shape
+    output = torch.argmax(output, dim=1)
+    converted_output = torch.zeros(output.shape, dtype=torch.int64)
+    for c in range(C):
+        converted_output[output == c] = class_defines.data[c]
+    return converted_output
+    
     
 # makes labels for training with cross entropy loss
+# takes tensor of size N x 1 x H x W with numbers for classes, changes those numbers to classification indices
 def ConvertCELabels(labels):
     N, _, H, W = labels.shape
     C = 35
     converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
-    new_labels = labels.div(1000).type_as(class_defines)
     for c in range(C):
-        mask = torch.eq(new_labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
+        mask = torch.eq(labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
         converted_labels += mask.view(N, H, W) * c
     return converted_labels, weights
 
@@ -231,7 +243,7 @@ def ReverseConvertCELabels(labels):
     return converted_labels
     
     
-    
+# DEPRECATED: converts back to instance id's but not needed now after labels are already converted to non-instance pixels
 def ReverseConvertLabels(labels):
     N, C, H, W = labels.shape
     converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)

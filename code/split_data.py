@@ -42,6 +42,6 @@ for ind in file_index:
     else:
         sp.call(['mv', file, osp.join(root, 'test_color')])
         sp.call(['mv', label_file, osp.join(root, 'test_label')])
-    count++
+    count += 1
 
 print("Done")
