@@ -80,11 +80,11 @@ def check_accuracy(loader, model):
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
-            y = y.to(device=device, dtype=hp.dtype)
-            
+#             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
+#             y = y.to(device=device, dtype=hp.dtype)
+            x.cuda()
             preds = model(x)
-            preds = preds.cuda()
+            preds.cuda()
             preds = ConvertOutputToLabels(preds)
             preds.int()
             N, H, W = preds.shape
@@ -92,9 +92,12 @@ def check_accuracy(loader, model):
             torchvision.utils.save_image(preds.view(N, 1, H, W), filename="Preds.png")
             
             y = y.cuda()
+#             print(torch.max(y.data))
             torchvision.utils.save_image(y.view(N, 1, H, W), filename="Truth.png")
             
-            num_correct += (preds.type_as(y) == y).sum()
+            num_correct += torch.eq(preds.type_as(y), y).sum()
+            print(num_correct)
+            print(num_samples)
             num_samples += y.numel()
             index += 1
             if index > 3:
@@ -116,7 +119,9 @@ def train(model, create_optimizer, epochs=1):
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
             
+            
             y, weights = ConvertCELabels(y)
+            print(torch.max(y))
             y = y.cuda()
             weights = weights.cuda()
             scores = model(x)

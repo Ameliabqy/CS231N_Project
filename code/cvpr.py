@@ -32,13 +32,13 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1e-5
+        self.learning_rate = 1e-2
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 10  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 20  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
@@ -166,7 +166,7 @@ class CVPR(Dataset):
             image.close()
             del image
             image = Image.open(label)
-            self.labels.append((np.asarray(image)/1000).astype(int))
+            self.labels.append(np.asarray(image))
             image.close()
             del image
         gc.collect()
@@ -191,10 +191,10 @@ class CVPR(Dataset):
         self.images = []
         self.labels = []
 
-def Crop(x, lim_indices):
-    hmin, hmax, wmin, wmax = lim_indices
-    x.data = x.data[:,:,hmin : hmax, wmin : wmax]
-    return x
+# def Crop(x, lim_indices):
+#     hmin, hmax, wmin, wmax = lim_indices
+#     x.data = x.data[:,:,hmin : hmax, wmin : wmax]
+#     return x
 
 
 # takes tensor of size N x C x H x W, 

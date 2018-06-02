@@ -24,3 +24,4 @@
 *.txt
 *.csv
 *.ipynb_checkpoints/*
+*.pyc
