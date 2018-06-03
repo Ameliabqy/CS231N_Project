@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
 weights = torch.ones(class_defines.shape, dtype=torch.float32)
+weights *= 20
+weights[0] = 1
 
 class HyperParameters:
     """
@@ -31,7 +33,7 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1e-6
+        self.learning_rate = 1e-5
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
@@ -43,7 +45,7 @@ class HyperParameters:
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = True
         self.batch_size = 15
-        self.num_files_to_load = self.num_epochs * self.batch_size * 50
+        self.num_files_to_load = self.num_epochs * self.batch_size * 100
         
         self.num_classes = 35  # This value is probably wrong
         self.print_every = 1

@@ -69,43 +69,43 @@ class DownUp(nn.Module):
         
         self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         
-        self.conv12 = nn.Conv2d(240, 212, (3, 3), padding=1, bias=True)
+        self.conv12 = nn.ConvTranspose2d(240, 212, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv12.weight)
         nn.init.constant_(self.conv12.bias, 0)
         
-        self.conv13 = nn.Conv2d(212, 196, (3, 3), padding=1, bias=True)
+        self.conv13 = nn.ConvTranspose2d(212, 196, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv13.weight)
         nn.init.constant_(self.conv13.bias, 0)
         
-        self.conv14 = nn.Conv2d(196, 172, (3, 3), padding=1, bias=True)
+        self.conv14 = nn.ConvTranspose2d(196, 172, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv14.weight)
         nn.init.constant_(self.conv14.bias, 0)
         
         self.up2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         
-        self.conv15 = nn.Conv2d(172, 156, (3, 3), padding=1, bias=True)
+        self.conv15 = nn.ConvTranspose2d(172, 156, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv15.weight)
         nn.init.constant_(self.conv15.bias, 0)
         
-        self.conv16 = nn.Conv2d(156, 120, (3, 3), padding=1, bias=True)
+        self.conv16 = nn.ConvTranspose2d(156, 120, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv16.weight)
         nn.init.constant_(self.conv16.bias, 0)
         
-        self.conv17 = nn.Conv2d(120, 96, (3, 3), padding=1, bias=True)
+        self.conv17 = nn.ConvTranspose2d(120, 96, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv17.weight)
         nn.init.constant_(self.conv17.bias, 0)
         
         self.up3 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         
-        self.conv18 = nn.Conv2d(96, 64, (3, 3), padding=1, bias=True)
+        self.conv18 = nn.ConvTranspose2d(96, 64, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv18.weight)
         nn.init.constant_(self.conv18.bias, 0)
         
-        self.conv19 = nn.Conv2d(64, 36, (3, 3), padding=1, bias=True)
+        self.conv19 = nn.ConvTranspose2d(64, 36, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv19.weight)
         nn.init.constant_(self.conv19.bias, 0)
         
-        self.conv20 = nn.Conv2d(36, 35, (3, 3), padding=1, bias=True)
+        self.conv20 = nn.ConvTranspose2d(36, 35, (3, 3), padding=1, bias=True, dilation=1)
         nn.init.kaiming_normal_(self.conv20.weight)
         nn.init.constant_(self.conv20.bias, 0)
         

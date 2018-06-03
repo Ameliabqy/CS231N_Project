@@ -59,6 +59,8 @@ def check_accuracy(loader, model):
         print('Checking accuracy on validation set')   
     num_samples = 0
     num_correct = 0
+    num_pred_zeros = 0
+    num_zeros = 0
     index = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
@@ -87,6 +89,8 @@ def check_accuracy(loader, model):
             im_label.save("Pred" + str(t)+"_label.png")
             del im_np, im, im_label_np, im_label
             num_correct += torch.eq(preds.type_as(y), y.squeeze()).sum()
+            num_pred_zeros += torch.eq(preds.type_as(y), 0).sum()
+            num_zeros += torch.eq(y, 0).sum()
 #             print(num_correct)
 #             print(num_samples)
             num_samples += y.numel()
@@ -94,7 +98,11 @@ def check_accuracy(loader, model):
             if index > 3:
                 break
             print('in loop')
+        pred_zeros = float(num_pred_zeros) / num_samples
+        zeros = float(num_zeros) / num_samples
         acc = float(num_correct) / num_samples
+        print('Percentage of zeros: %.2f' % (100 * zeros))
+        print('Percentage of predicted zeros: %.2f' % (100 * pred_zeros))
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
         
         
@@ -128,7 +136,7 @@ def train(model, create_optimizer, epochs=1):
             scores = scores.cuda()
             
             if hp.loss_type == "full":
-                loss_func = F.torch.nn.CrossEntropyLoss()
+                loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
             
             # This is the backwards pass: compute the gradient of the loss with

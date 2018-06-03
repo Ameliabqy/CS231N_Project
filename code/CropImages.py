@@ -31,17 +31,17 @@ def convert_labels(label_path):
  
 if __name__ == '__main__':
     root = '../data/cvpr-2018-autonomous-driving'
-    image = '../data/cvpr-2018-autonomous-driving/train_color'
-    image_label = '../data/cvpr-2018-autonomous-driving/train_label'
-    saved_location = image.replace('train_color', 'cropped_train_color/')
-    saved_location_label = image.replace('train_color', 'cropped_train_label/')
+    image = '../data/cvpr-2018-autonomous-driving/val_color'
+    image_label = '../data/cvpr-2018-autonomous-driving/val_label'
+    saved_location = image.replace('val_color', 'cropped_val_color/')
+    saved_location_label = image.replace('val_color', 'cropped_val_label/')
     
     print ("Creating folders")
-    sp.call(['mkdir', osp.join(root, 'cropped_train_color')])
-    sp.call(['mkdir', osp.join(root, 'cropped_train_label')])
+    sp.call(['mkdir', osp.join(root, 'cropped_val_color')])
+    sp.call(['mkdir', osp.join(root, 'cropped_val_label')])
     
-    directory = os.fsencode('../data/cvpr-2018-autonomous-driving/train_color')
-    new_directory = os.fsencode('../data/cvpr-2018-autonomous-driving/cropped_train_color')
+    directory = os.fsencode('../data/cvpr-2018-autonomous-driving/val_color')
+    new_directory = os.fsencode('../data/cvpr-2018-autonomous-driving/cropped_val_color')
     index = 0
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
