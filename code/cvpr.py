@@ -15,8 +15,6 @@ import matplotlib.pyplot as plt
 
 class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
 weights = torch.ones(class_defines.shape, dtype=torch.float32)
-weights *= 10
-weights[0] = 1
 
 class HyperParameters:
     """
@@ -29,26 +27,26 @@ class HyperParameters:
         self.dtype = torch.float
         self.train_root = '../data/cvpr-2018-autonomous-driving/cropped_train_color'
         self.val_root = '../data/cvpr-2018-autonomous-driving/cropped_val_color'
-        self.device = '/cuda:0'
+        self.device = '/cuda'
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-6
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 20  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 100 # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = True
-        self.batch_size = 25
-        self.num_files_to_load = self.num_epochs * self.batch_size
+        self.batch_size = 15
+        self.num_files_to_load = self.num_epochs * self.batch_size * 50
         
-        self.num_classes = 20  # This value is probably wrong
-        self.print_every = 3
+        self.num_classes = 35  # This value is probably wrong
+        self.print_every = 1
 
         # Graph saving params
         self.save_model = True
@@ -143,9 +141,9 @@ class CVPR(Dataset):
         """
         return self.len
     
-    def __iter__(self):
-        N, B = hp.num_files_to_load, hp.batch_size
-        return iter((self.images[i:i+B], self.labels[i:i+B]) for i in range(0, N, B))
+#     def __iter__(self):
+#         N, B = hp.num_files_to_load, hp.batch_size
+#         return iter((self.images[i:i+B], self.labels[i:i+B]) for i in range(0, N, B))
     
     def update_iterator(self):
         # If a batch has already been loaded free the last batch
