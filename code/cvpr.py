@@ -30,7 +30,7 @@ class HyperParameters:
         self.device = '/cuda'
         
         # Training params
-        self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
+        self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
         self.learning_rate = 1e-6
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"

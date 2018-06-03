@@ -14,6 +14,8 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
+CUDA_VISIBLE_DEVICES=0,1
+
 # Use GPU if available, otherwise stick with cpu
 use_cuda = torch.cuda.is_available()
 torch.manual_seed(123)
@@ -145,6 +147,6 @@ def train(model, create_optimizer, epochs=1):
 
 model = DownUp()
 # model = ResNet18()
-model = model.cuda()
+model =  torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 
