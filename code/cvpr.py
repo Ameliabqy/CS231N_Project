@@ -10,12 +10,14 @@ import glob
 import os.path as osp
 import numpy as np
 from PIL import Image
+import gc
 
 import matplotlib.pyplot as plt
 
-class_defines = torch.tensor([33, 34, 35, 36, 37, 38, 39, 40, 0, 1, 17, 161, 162, 163, 164, 165, 166, 167, 168, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113], dtype = torch.int64)
+class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
 weights = torch.ones(class_defines.shape, dtype=torch.float32)
-weights[8] = 0.01
+weights[0] = 0.001
+
 
 class HyperParameters:
     """
@@ -26,13 +28,12 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float
-        self.train_root = '../data/cvpr-2018-autonomous-driving/cropped_train_color'
-        self.val_root = '../data/cvpr-2018-autonomous-driving/cropped_val_color'
-        self.device = '/cuda:0'
+        self.train_root = '../data/cropped_train_color'
+        self.val_root = '../data/cropped_val_color'
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1e-5
+        self.learning_rate = 5e-4
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
@@ -42,17 +43,20 @@ class HyperParameters:
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
-        self.preload = True
-        self.batch_size = 50
+        self.preload = False
+        self.batch_size = 30
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
         self.print_every = 3
+        self.show_every = 5
 
         # Graph saving params
         self.save_model = True
         self.use_saved_model = False
     
+hp = HyperParameters()
+
 
 class CVPR(Dataset):
     """
@@ -90,7 +94,8 @@ class CVPR(Dataset):
             self.filenames.append((fn, lbl)) # (filename, label) pair
             if len(self.filenames) >= hp.num_files_to_load: 
                 break
-                
+#         self.labels = []
+#         self.images = []
         # if preload dataset into memory
         if hp.preload:
             self._preload()
@@ -101,8 +106,6 @@ class CVPR(Dataset):
         """
         Preload dataset to memory
         """
-        self.labels = []
-        self.images = []
         for image_fn, label in self.filenames:            
             # load images
             image = Image.open(image_fn)
@@ -166,7 +169,7 @@ class CVPR(Dataset):
             image.close()
             del image
             image = Image.open(label)
-            self.labels.append((np.asarray(image)/1000).astype(int))
+            self.labels.append((np.asarray(image)).astype(int))
             image.close()
             del image
         gc.collect()
@@ -225,10 +228,12 @@ def ConvertOutputToLabels(output):
 def ConvertCELabels(labels):
     N, _, H, W = labels.shape
     C = 35
+#     print(labels.max())
     converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
     for c in range(C):
         mask = torch.eq(labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
         converted_labels += mask.view(N, H, W) * c
+#     print(converted_labels.max())
     return converted_labels, weights
 
 
@@ -253,4 +258,4 @@ def ReverseConvertLabels(labels):
 #     converted_labels += unlabeled.type_as(converted_labels) * 255
     return converted_labels
         
-        
+ 

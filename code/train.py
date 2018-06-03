@@ -1,6 +1,6 @@
 from cvpr import *
 from DownUp import *
-from ResNet50DownUp import *
+from ResNet18 import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,23 +13,22 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
+predict_im_path = "./predict_im/"
+
 # Use GPU if available, otherwise stick with cpu
 use_cuda = torch.cuda.is_available()
 torch.manual_seed(123)
 device = torch.device('cuda' if use_cuda else "cpu")
 print(device)
 
-hp = HyperParameters()
 
 # Create the CVPR dataset. 
 # transforms.ToTensor() automatically converts PIL images to
 # torch tensors with range [0, 1]
-if hp.preload:
-    trainset = CVPR(hp,
-        preload=True, transform=transforms.ToTensor(), train_sel = True
-    )
-    # Use the torch dataloader to iterate through the dataset
-    trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
+trainset = CVPR(hp,
+    preload=hp.preload, transform=transforms.ToTensor(), train_sel = True)
+# Use the torch dataloader to iterate through the dataset
+trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
     
 #     valset = CVPR(hp,
 #         preload=True, transform=transforms.ToTensor(), train_sel = False
@@ -37,9 +36,13 @@ if hp.preload:
 #     # Use the torch dataloader to iterate through the dataset
 #     valset_loader = DataLoader(valset, batch_size=1, shuffle=True, num_workers=1)
 
+# data = np.asarray( trainset.labels[0], dtype="float32" )
+# print(data.max())
+# for t, (x, y) in enumerate(trainset_loader):
+#     print(y.max())
+#     print(x)
+#     break
 
-
-# data = np.asarray( trainset.labels[4], dtype="int32" )
 # print(np.where(data == 33000))
 
 # transform = transforms.ToTensor()
@@ -58,7 +61,7 @@ def create_optimizer(model, hp):
     
     optimizer = None
     if hp.optimizer == "Adam":    
-        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay = hp.lr_decay)
     if hp.optimizer == "AdaGrad":
         optimizer = torch.optim.Adagrad(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "SGD":
@@ -68,29 +71,43 @@ def create_optimizer(model, hp):
     
     return optimizer
 
-def check_accuracy(loader, model):
+def check_accuracy(loader, model, save_flag):
     if loader.dataset.train:
-        print('Checking accuracy on validation set')
+        print('Checking accuracy on train set')
     else:
-        print('Checking accuracy on test set')   
+        print('Checking accuracy on validation set')   
     num_correct = 0
     num_samples = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
-        for x, y in loader:
+#         trainset_loader.update_iterator()
+#         x, y = trainset_loader.get_images();
+        for t, (x, y) in enumerate(loader):
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
-            
+            y *= 255
             preds = model(x)
-            preds = preds.cuda()
+            if device == torch.device('cuda'):
+                preds = preds.cuda()
             preds = ConvertOutputToLabels(preds)
-            
-            y = y.div(1000).to(torch.int64)
-            y = y.cuda()
-            
-            num_correct += (preds.type_as(y) == y).sum()
-            num_samples += y.numel()
-            print('in loop')
+            if device == torch.device('cuda'):
+                y = y.cuda()
+            y = y.squeeze()
+    #             print(np.unique(np.asarray(preds)), np.unique(np.asarray(y)))
+            plus_num_correct = (preds.type_as(y) == y).sum()
+            plus_num_samples = y.numel()
+            num_correct += plus_num_correct
+            num_samples += plus_num_samples
+            current_acc = float(plus_num_correct) / plus_num_samples
+            if save_flag and current_acc * 100 > 89.8:
+                im_np = np.asarray( preds, dtype="int8" )
+                im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
+                im.save(predict_im_path + str(t)+".png")
+                im_label_np = np.asarray( y, dtype="int8" )
+                im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
+                im_label.save(predict_im_path + str(t)+"_label.png")
+                del im_np, im, im_label_np, im_label
+        print('in loop (%.2f)', current_acc * 100)
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
         
@@ -102,20 +119,23 @@ def train(model, create_optimizer, epochs=1):
     if hp.num_epochs:
         epochs = hp.num_epochs
     for e in range(epochs):
+#         trainset.update_iterator()
+#         x, y = trainset_loader.get_images();
         for t, (x, y) in enumerate(trainset_loader):
             model.train()  # put model to training mode
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
-            
+            y *= 255
             y, weights = ConvertCELabels(y)
-            y = y.cuda()
-            weights = weights.cuda()
+            if device == torch.device('cuda'):
+                y = y.cuda()
+                weights = weights.cuda()
             scores = model(x)
-            
-            
+
             if hp.loss_type == "full":
                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
+    #             print(scores)
             optimizer = create_optimizer(model, hp)
 
             # Zero out all of the gradients for the variables which the optimizer
@@ -132,12 +152,12 @@ def train(model, create_optimizer, epochs=1):
 
             if t % hp.print_every == 0:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
-                check_accuracy(trainset_loader, model)
+                check_accuracy(trainset_loader, model, True)
                 print()
 
 
-learning_rate = 1e-2
-model = DownUp()
-# model = ResNet50()
+# model = DownUp()
+# model = Resnet18_8s()
+model = Resnet50_8s()
 train(model, create_optimizer)
 
