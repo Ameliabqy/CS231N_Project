@@ -16,6 +16,7 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
+CUDA_VISIBLE_DEVICES = 0,1,2,3
 predict_im_path = "./predict_im/"
 
 # Use GPU if available, otherwise stick with cpu
@@ -118,7 +119,9 @@ def check_accuracy(loader, model, save_flag):
         
         
 def train(model, create_optimizer, epochs=1):
-    model = model.to(device=device)  # move the model parameters to CPU/GPU
+    optimizer = create_optimizer(model, hp)
+    model.train()  # put model to training mode
+    
     print('start training ')
     if hp.num_epochs:
         epochs = hp.num_epochs
@@ -126,21 +129,22 @@ def train(model, create_optimizer, epochs=1):
 #         trainset.update_iterator()
 #         x, y = trainset_loader.get_images();
         for t, (x, y) in enumerate(trainset_loader):
-            model.train()  # put model to training mode
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
             y *= 255
+            y[y==255] = 0
+            x = x.cuda()
+            y = y.cuda()
             y, weights = ConvertCELabels(y)
             if device == torch.device('cuda'):
                 y = y.cuda()
                 weights = weights.cuda()
-            scores = model(x)
+                scores = model(x).cuda()
 
             if hp.loss_type == "full":
                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
     #             print(scores)
-            optimizer = create_optimizer(model, hp)
 
             # Zero out all of the gradients for the variables which the optimizer
             # will update.
@@ -159,14 +163,26 @@ def train(model, create_optimizer, epochs=1):
                 check_accuracy(valset_loader, model, True)
                 print()
 
+## Define models 
 
+## barebone model
 # model = DownUp()
-# model = Resnet18_8s()
-# model = Resnet50_8s()
-# model = Resnet18_Transfer()
-# model = Resnet18_Deconv()
-# model = Resnet50_Deconv()
-model = Resnet18_Dilated()
-# model = Resnet50_Dilated()
+
+## Resnet pretrained model with upsampling 
+# model = Resnet18_8s() # learning rate: 
+# model = Resnet50_8s() # learning rate:
+
+## Resnet with upsampling using transfer learning 
+# model = Resnet18_Transfer() # learning rate:
+# model = Resnet18_Transfer() # learning rate:
+
+## Deconvolution upsampling with transfer learning 
+# model = Resnet18_Deconv() # learning rate:
+# model = Resnet50_Deconv() # learning rate:
+
+## Dilated deconvolution layers with transfer learning 
+# model = Resnet18_Dilated() # learning rate:
+model = Resnet50_Dilated() # learning rate:
+model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 

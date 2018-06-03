@@ -5,8 +5,6 @@ import torchvision
 
 class Resnet18_Deconv(nn.Module):
     
-    # Achieved ~57 on pascal VOC
-    
     def __init__(self, num_classes=35):
         
         super(Resnet18_Deconv, self).__init__()
@@ -29,6 +27,10 @@ class Resnet18_Deconv(nn.Module):
         self.score_8s = nn.Conv2d(128,
                                    num_classes,
                                    kernel_size=1)
+        
+        self.deconv1 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.deconv2 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=8, padding=1)
         
         
     def forward(self, x):
@@ -54,14 +56,11 @@ class Resnet18_Deconv(nn.Module):
         logits_16s_spatial_dim = logits_16s.size()[2:]
         logits_8s_spatial_dim = logits_8s.size()[2:]
                 
-        logits_16s_layer = nn.ConvTranspose2d(logits_32s.size()[1], logits_32s.size()[1], 3, stride=2, padding=1)
-        logits_16s += logits_16s_layer(logits_32s, output_size=logits_16s_spatial_dim)
+        logits_16s += self.deconv1(logits_32s, output_size=logits_16s_spatial_dim)
         
-        logits_8s_layer = nn.ConvTranspose2d(logits_16s.size()[1], logits_16s.size()[1], 3, stride=2, padding=1)
-        logits_8s += logits_8s_layer(logits_16s, output_size=logits_8s_spatial_dim)
+        logits_8s += self.deconv2(logits_16s, output_size=logits_8s_spatial_dim)
         
-        logits_upsampled_layer = nn.ConvTranspose2d(logits_8s.size()[1], logits_8s.size()[1], 3, stride=8, padding=1)
-        logits_upsampled = logits_upsampled_layer(logits_8s, output_size=input_spatial_dim)
+        logits_upsampled = self.deconv3(logits_8s, output_size=input_spatial_dim)
         
         return logits_upsampled
 
@@ -92,6 +91,10 @@ class Resnet50_Deconv(nn.Module):
                                    num_classes,
                                    kernel_size=1)
         
+        self.deconv1 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.deconv2 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=8, padding=1)
+        
         
     def forward(self, x):
         
@@ -116,13 +119,10 @@ class Resnet50_Deconv(nn.Module):
         logits_16s_spatial_dim = logits_16s.size()[2:]
         logits_8s_spatial_dim = logits_8s.size()[2:]
         
-        logits_16s_layer = nn.ConvTranspose2d(logits_32s.size()[1], logits_32s.size()[1], 3, stride=2, padding=1)
-        logits_16s += logits_16s_layer(logits_32s, output_size=logits_16s_spatial_dim)
+        logits_16s += self.deconv1(logits_32s, output_size=logits_16s_spatial_dim)
         
-        logits_8s_layer = nn.ConvTranspose2d(logits_16s.size()[1], logits_16s.size()[1], 3, stride=2, padding=1)
-        logits_8s += logits_8s_layer(logits_16s, output_size=logits_8s_spatial_dim)
+        logits_8s += self.deconv2(logits_16s, output_size=logits_8s_spatial_dim)
         
-        logits_upsampled_layer = nn.ConvTranspose2d(logits_8s.size()[1], logits_8s.size()[1], 3, stride=8, padding=1)
-        logits_upsampled = logits_upsampled_layer(logits_8s, output_size=input_spatial_dim)
+        logits_upsampled = self.deconv3(logits_8s, output_size=input_spatial_dim)
         
         return logits_upsampled

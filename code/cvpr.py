@@ -43,7 +43,7 @@ class HyperParameters:
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
-        self.batch_size = 30
+        self.batch_size = 50
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
@@ -95,7 +95,7 @@ class CVPR(Dataset):
                 if len(self.filenames) >= hp.num_files_to_load: 
                     break
             else:
-                if len(self.filenames) >= hp.batch_size * 5: 
+                if len(self.filenames) >= hp.batch_size * 10: 
                     break
 #         self.labels = []
 #         self.images = []
