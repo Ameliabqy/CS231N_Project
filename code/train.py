@@ -26,15 +26,14 @@ print(device)
 # transforms.ToTensor() automatically converts PIL images to
 # torch tensors with range [0, 1]
 trainset = CVPR(hp,
-    preload=hp.preload, transform=transforms.ToTensor(), train_sel = True)
+    preload=False, transform=transforms.ToTensor(), train_sel = True)
 # Use the torch dataloader to iterate through the dataset
 trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
-    
-#     valset = CVPR(hp,
-#         preload=True, transform=transforms.ToTensor(), train_sel = False
-#     )
-#     # Use the torch dataloader to iterate through the dataset
-#     valset_loader = DataLoader(valset, batch_size=1, shuffle=True, num_workers=1)
+
+valset = CVPR(hp,
+    preload=False, transform=transforms.ToTensor(), train_sel = False)
+# Use the torch dataloader to iterate through the dataset
+valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
 
 # data = np.asarray( trainset.labels[0], dtype="float32" )
 # print(data.max())
@@ -61,7 +60,7 @@ def create_optimizer(model, hp):
     
     optimizer = None
     if hp.optimizer == "Adam":    
-        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay = hp.lr_decay)
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "AdaGrad":
         optimizer = torch.optim.Adagrad(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "SGD":
@@ -99,7 +98,9 @@ def check_accuracy(loader, model, save_flag):
             num_correct += plus_num_correct
             num_samples += plus_num_samples
             current_acc = float(plus_num_correct) / plus_num_samples
-            if save_flag and current_acc * 100 > 89.8:
+            im_np = np.asarray( preds, dtype="int8" )
+            
+            if save_flag and current_acc * 100 > 99:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save(predict_im_path + str(t)+".png")
@@ -107,7 +108,7 @@ def check_accuracy(loader, model, save_flag):
                 im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
                 im_label.save(predict_im_path + str(t)+"_label.png")
                 del im_np, im, im_label_np, im_label
-        print('in loop (%.2f)', current_acc * 100)
+            print('in loop (%.2f)', current_acc * 100)
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
         
@@ -152,7 +153,7 @@ def train(model, create_optimizer, epochs=1):
 
             if t % hp.print_every == 0:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
-                check_accuracy(trainset_loader, model, True)
+                check_accuracy(valset_loader, model, True)
                 print()
 
 
