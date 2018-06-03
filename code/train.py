@@ -181,8 +181,8 @@ def train(model, create_optimizer, epochs=1):
 # model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
-# model = Resnet18_Dilated() # learning rate:
-model = Resnet50_Dilated() # learning rate:
+model = Resnet18_Dilated() # learning rate:
+# model = Resnet50_Dilated() # learning rate:
 model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 
