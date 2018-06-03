@@ -49,19 +49,19 @@ if __name__ == '__main__':
             label_filename = filename[:-4] + '_instanceIds.png'
             label = Image.open(os.path.join(image_label, label_filename))
             label2np = np.asarray(label, dtype="int32" )
-#             if np.unique(label2np).shape[0] > 1:
-#                 choice = random.choice(np.delete(np.unique(label2np), 0))
-# #                 print(choice)
-#                 indices = np.where(label2np == choice)
-#                 y = indices[0][0]
-#                 x = indices[1][0]
-            crop_coord = (8, 8, 392, 392)
+            if np.unique(label2np).shape[0] > 1:
+                choice = random.choice(np.delete(np.unique(label2np), 0))
+#                 print(choice)
+                indices = np.where(label2np == choice)
+                y = indices[0][0]
+                x = indices[1][0]
+            crop_coord = (x-192, y-192, x+192, y+192)
             crop(os.path.join(image, filename), crop_coord, os.path.join(saved_location, filename))
             crop(os.path.join(image_label, label_filename), crop_coord, os.path.join(saved_location_label, label_filename))
-#             convert_labels(os.path.join(saved_location_label, label_filename))
+            convert_labels(os.path.join(saved_location_label, label_filename))
             index += 1
-            if (index == NumCrop):
-                break
+#             if (index == NumCrop):
+#                 break
         else:
             continue
             

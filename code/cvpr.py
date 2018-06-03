@@ -32,13 +32,13 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 2e-4 #9e-3 resnet18 SGD
+        self.learning_rate = 5e-4 #9e-3 resnet18 SGD
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 100  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 20  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything

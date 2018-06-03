@@ -1,6 +1,9 @@
 from cvpr import *
-from DownUp import *
-from ResNet18 import *
+from models.DownUp import * 
+from models.ResNet import * 
+from models.ResNet_Transfer import * 
+from models.ResNet_Deconv import * 
+from models.ResNet_Dilated import * 
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -100,7 +103,7 @@ def check_accuracy(loader, model, save_flag):
             current_acc = float(plus_num_correct) / plus_num_samples
             im_np = np.asarray( preds, dtype="int8" )
             
-            if save_flag and current_acc * 100 > 99:
+            if save_flag and current_acc * 100 > 90:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save(predict_im_path + str(t)+".png")
@@ -159,6 +162,11 @@ def train(model, create_optimizer, epochs=1):
 
 # model = DownUp()
 # model = Resnet18_8s()
-model = Resnet50_8s()
+# model = Resnet50_8s()
+# model = Resnet18_Transfer()
+# model = Resnet18_Deconv()
+# model = Resnet50_Deconv()
+model = Resnet18_Dilated()
+# model = Resnet50_Dilated()
 train(model, create_optimizer)
 
