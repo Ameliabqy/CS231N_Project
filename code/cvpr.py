@@ -13,9 +13,10 @@ from PIL import Image
 
 import matplotlib.pyplot as plt
 
-class_defines = torch.tensor([33, 34, 35, 36, 37, 38, 39, 40, 0, 1, 17, 161, 162, 163, 164, 165, 166, 167, 168, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113], dtype = torch.int64)
+class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
 weights = torch.ones(class_defines.shape, dtype=torch.float32)
-weights[8] = 0.01
+weights *= 10
+weights[0] = 1
 
 class HyperParameters:
     """
@@ -32,7 +33,7 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1e-2
+        self.learning_rate = 1e-4
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.9
@@ -43,7 +44,7 @@ class HyperParameters:
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = True
-        self.batch_size = 50
+        self.batch_size = 25
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
@@ -191,10 +192,38 @@ class CVPR(Dataset):
         self.images = []
         self.labels = []
 
-# def Crop(x, lim_indices):
-#     hmin, hmax, wmin, wmax = lim_indices
-#     x.data = x.data[:,:,hmin : hmax, wmin : wmax]
-#     return x
+
+        
+        
+        
+class ToByteTensor(object):
+    """Convert a ``PIL.Image`` to tensor.
+
+    Converts a PIL.Image or numpy.ndarray (H x W x C) in the range
+    [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+    """
+
+    def __call__(self, pic):
+        """
+        Args:
+            pic (PIL.Image or numpy.ndarray): Image to be converted to tensor.
+
+        Returns:
+            Tensor: Converted image.
+        """
+
+        # handle PIL Image
+
+        img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+        # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
+        nchannel = len(pic.mode)
+        
+        img = img.view(pic.size[1], pic.size[0], nchannel)
+        # put it from HWC to CHW format
+        # yikes, this transpose takes 80% of the loading time/CPU
+        img = img.transpose(0, 1).transpose(0, 2).contiguous()
+        return img
+    
 
 
 # takes tensor of size N x C x H x W, 
@@ -231,16 +260,6 @@ def ConvertCELabels(labels):
         converted_labels += mask.view(N, H, W) * c
     return converted_labels, weights
 
-
-# makes reverted labels for training with cross entropy loss
-def ReverseConvertCELabels(labels):
-    N, C, H, W = labels.shape
-    converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
-    for c in range(C):
-        converted_labels[:, 0, :, :] += torch.eq(labels, c).type_as(class_defines) * class_defines[c] * 1000
-    unlabeled = converted_labels == 0
-    converted_labels += unlabeled.type_as(converted_labels) * 255
-    return converted_labels
     
     
 # DEPRECATED: converts back to instance id's but not needed now after labels are already converted to non-instance pixels

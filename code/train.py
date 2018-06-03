@@ -27,7 +27,7 @@ hp = HyperParameters()
 # torch tensors with range [0, 1]
 if hp.preload:
     trainset = CVPR(hp,
-        preload=True, transform=transforms.ToTensor(), train_sel = True
+        preload=True, transform=ToByteTensor(), train_sel = True
     )
     # Use the torch dataloader to iterate through the dataset
     trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
@@ -74,30 +74,29 @@ def check_accuracy(loader, model):
         print('Checking accuracy on train set')
     else:
         print('Checking accuracy on validation set')   
-    num_correct = 0
     num_samples = 0
+    num_correct = 0
     index = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
-#             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
-#             y = y.to(device=device, dtype=hp.dtype)
-            x.cuda()
+            y[y == 255] = 0
+            x = x.to(dtype=hp.dtype)  # move to device, e.g. GPU
+            y = y.to(dtype=hp.dtype)
+            x = x.cuda()
+            y = y.cuda()
+            
             preds = model(x)
             preds.cuda()
             preds = ConvertOutputToLabels(preds)
-            preds.int()
             N, H, W = preds.shape
        
             torchvision.utils.save_image(preds.view(N, 1, H, W), filename="Preds.png")
-            
-            y = y.cuda()
-#             print(torch.max(y.data))
             torchvision.utils.save_image(y.view(N, 1, H, W), filename="Truth.png")
             
-            num_correct += torch.eq(preds.type_as(y), y).sum()
-            print(num_correct)
-            print(num_samples)
+            num_correct += torch.eq(preds.type_as(y), y.squeeze()).sum()
+#             print(num_correct)
+#             print(num_samples)
             num_samples += y.numel()
             index += 1
             if index > 3:
@@ -109,33 +108,36 @@ def check_accuracy(loader, model):
         
         
 def train(model, create_optimizer, epochs=1):
-    model = model.to(device=device)  # move the model parameters to CPU/GPU
     print('start training ')
+    optimizer = create_optimizer(model, hp)
+    model.train()  # put model to training mode
+    
     if hp.num_epochs:
         epochs = hp.num_epochs
+        
     for e in range(epochs):
         for t, (x, y) in enumerate(trainset_loader):
-            model.train()  # put model to training mode
-            x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
-            y = y.to(device=device, dtype=hp.dtype)
+            y[y == 255] = 0
+            x = x.to(dtype=hp.dtype)  # move to device, e.g. GPU
+            y = y.to(dtype=hp.dtype)
             
+            x = x.cuda()
+            y = y.cuda()
+            
+            # Zero out all of the gradients for the variables which the optimizer
+            # will update.
+            optimizer.zero_grad()
             
             y, weights = ConvertCELabels(y)
-            print(torch.max(y))
             y = y.cuda()
             weights = weights.cuda()
             scores = model(x)
-            
+            scores = scores.cuda()
             
             if hp.loss_type == "full":
                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
-            optimizer = create_optimizer(model, hp)
-
-            # Zero out all of the gradients for the variables which the optimizer
-            # will update.
-            optimizer.zero_grad()
-
+            
             # This is the backwards pass: compute the gradient of the loss with
             # respect to each  parameter of the model.
             loss.backward()
@@ -150,9 +152,9 @@ def train(model, create_optimizer, epochs=1):
                 print()
                 break
 
+# model = DownUp()
+model = ResNet18()
+model = model.cuda()
 
-learning_rate = 1e-2
-model = DownUp()
-# model = ResNet50()
 train(model, create_optimizer)
 
