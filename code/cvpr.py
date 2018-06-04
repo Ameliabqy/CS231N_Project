@@ -27,8 +27,8 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float
-        self.train_root = '../data/cropped_train_color'
-        self.val_root = '../data/cropped_val_color'
+        self.train_root = '../data/cvpr-2018-autonomous-driving/cropped_train_color'
+        self.val_root = '../data/cvpr-2018-autonomous-driving/cropped_val_color'
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad

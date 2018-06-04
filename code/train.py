@@ -16,8 +16,10 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
-CUDA_VISIBLE_DEVICES = 0,1,2,3
-predict_im_path = "./predict_im/"
+CUDA_VISIBLE_DEVICES = 0,1
+
+accuracies = np.array([])
+index = 0
 
 # Use GPU if available, otherwise stick with cpu
 use_cuda = torch.cuda.is_available()
@@ -75,6 +77,8 @@ def create_optimizer(model, hp):
     return optimizer
 
 def check_accuracy(loader, model, save_flag):
+    global index
+    global accuracies
     if loader.dataset.train:
         print('Checking accuracy on train set')
     else:
@@ -104,17 +108,22 @@ def check_accuracy(loader, model, save_flag):
             current_acc = float(plus_num_correct) / plus_num_samples
             im_np = np.asarray( preds, dtype="int8" )
             
+            
             if save_flag and current_acc * 100 > 90:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
-                im.save(predict_im_path + str(t)+".png")
+                im.save("Pred" + str(t)+".png")
                 im_label_np = np.asarray( y, dtype="int8" )
                 im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
-                im_label.save(predict_im_path + str(t)+"_label.png")
+                im_label.save("Pred" + str(t)+"_label.png")
                 del im_np, im, im_label_np, im_label
             print('in loop (%.2f)', current_acc * 100)
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+        index += 1
+        accuracies = np.append(accuracies, acc)
+        if index % 10 == 0:
+            np.save('Accuracies.npy', accuracies)
         
         
         
@@ -135,6 +144,7 @@ def train(model, create_optimizer, epochs=1):
             y[y==255] = 0
             x = x.cuda()
             y = y.cuda()
+            print("here")
             y, weights = ConvertCELabels(y)
             if device == torch.device('cuda'):
                 y = y.cuda()
@@ -174,14 +184,14 @@ def train(model, create_optimizer, epochs=1):
 
 ## Resnet with upsampling using transfer learning 
 # model = Resnet18_Transfer() # learning rate:
-# model = Resnet18_Transfer() # learning rate:
+model = Resnet18_Transfer() # learning rate:
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
 # model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
-model = Resnet18_Dilated() # learning rate:
+# model = Resnet18_Dilated() # learning rate:
 # model = Resnet50_Dilated() # learning rate:
 model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
