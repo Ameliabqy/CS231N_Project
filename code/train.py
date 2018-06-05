@@ -15,6 +15,7 @@ import glob
 import os.path as osp
 import numpy as np
 from PIL import Image
+import datetime
 
 CUDA_VISIBLE_DEVICES = 0,1
 
@@ -36,12 +37,12 @@ print(device)
 trainset = CVPR(hp,
     preload=False, transform=transforms.ToTensor(), train_sel = True)
 # Use the torch dataloader to iterate through the dataset
-trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
+trainset_loader = DataLoader(trainset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
 
 valset = CVPR(hp,
     preload=False, transform=transforms.ToTensor(), train_sel = False)
 # Use the torch dataloader to iterate through the dataset
-valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
+valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
 
 
 
@@ -54,9 +55,9 @@ def create_optimizer(model, hp):
     if hp.optimizer == "AdaGrad":
         optimizer = torch.optim.Adagrad(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=hp.learning_rate, weight_decay=hp.lr_decay)
+        optimizer = torch.optim.SGD(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay, momentum=hp.momentum, nesterov=hp.use_Nesterov)
     if hp.optimizer == "RMSProp":
-        optimizer = torch.optim.RMSProp(model.parameters(), lr=hp.learning_rate, weight_decay=hp.lr_decay, momentum=hp.momentum, eps=1e-10)
+        optimizer = torch.optim.RMSProp(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay, momentum=hp.momentum, eps=1e-10)
     
     return optimizer
 
@@ -96,7 +97,7 @@ def check_accuracy(loader, model, save_flag):
             im_np = np.asarray( preds, dtype="int8" )
             
             # Save images
-            if save_flag and current_acc * 100 > 50 and loader.dataset.train:
+            if save_flag and current_acc * 100 > 1 and loader.dataset.train:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save("Pred" + str(t)+".png")
@@ -166,6 +167,10 @@ def train(model, create_optimizer, epochs=1):
                 check_accuracy(valset_loader, model, False)
                 print()
                 
+            if t % hp.save_every == 0:
+                date_string = datetime.datetime.now().strftime("%I%p_%B_%d")
+                torch.save(model, 'saved_model__' + hp.model_name + '__'+ date_string + '.pt')
+                
         np.save('Losses.npy', losses)
         np.save('Train_Accuracies.npy', train_accuracies)
         np.save('Val_Accuracies.npy', val_accuracies)
@@ -183,8 +188,11 @@ def train(model, create_optimizer, epochs=1):
 # model = Resnet50_8s() # learning rate:
 
 ## Resnet with upsampling using transfer learning 
-model = Resnet18_Transfer() # learning rate:
-# model = Resnet50_Transfer() # learning rate:
+if hp.model_name == 'Resnet18_Transfer':
+    model = Resnet18_Transfer()
+if hp.model_name == 'Resnet50_Transfer':
+    model = Resnet50_Transfer()
+    
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
