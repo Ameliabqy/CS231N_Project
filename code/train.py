@@ -19,6 +19,7 @@ from PIL import Image
 CUDA_VISIBLE_DEVICES = 0,1
 
 accuracies = np.array([])
+losses = np.array([])
 index = 0
 
 # Use GPU if available, otherwise stick with cpu
@@ -41,25 +42,7 @@ valset = CVPR(hp,
 # Use the torch dataloader to iterate through the dataset
 valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
 
-# data = np.asarray( trainset.labels[0], dtype="float32" )
-# print(data.max())
-# for t, (x, y) in enumerate(trainset_loader):
-#     print(y.max())
-#     print(x)
-#     break
 
-# print(np.where(data == 33000))
-
-# transform = transforms.ToTensor()
-# y = transform(trainset.labels[4])
-# print(y.unique())
-# print(y.shape)
-# y = y.view(1,1,y.shape[1], y.shape[2])
-# y = Crop(y, (1680, 1690, 330, 340))
-
-
-# y1 = ConvertLabels(y)
-# y2 = ReverseConvertLabels(y1)
 
 
 def create_optimizer(model, hp):
@@ -75,6 +58,8 @@ def create_optimizer(model, hp):
         optimizer = torch.optim.RMSProp(model.parameters(), lr=hp.learning_rate, weight_decay=hp.lr_decay, momentum=hp.momentum, eps=1e-10)
     
     return optimizer
+
+
 
 def check_accuracy(loader, model, save_flag):
     global index
@@ -109,7 +94,7 @@ def check_accuracy(loader, model, save_flag):
             im_np = np.asarray( preds, dtype="int8" )
             
             
-            if save_flag and current_acc * 100 > 90:
+            if save_flag and current_acc * 100 > 85:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save("Pred" + str(t)+".png")
@@ -128,6 +113,8 @@ def check_accuracy(loader, model, save_flag):
         
         
 def train(model, create_optimizer, epochs=1):
+    global index
+    global losses
     optimizer = create_optimizer(model, hp)
     model.train()  # put model to training mode
     
@@ -154,6 +141,11 @@ def train(model, create_optimizer, epochs=1):
             if hp.loss_type == "full":
                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
+                losses = np.append(losses, loss.data.item())
+                if index % 10 == 0:
+                    np.save('Losses.npy', losses)
+                    
+                
     #             print(scores)
 
             # Zero out all of the gradients for the variables which the optimizer
@@ -184,11 +176,11 @@ def train(model, create_optimizer, epochs=1):
 
 ## Resnet with upsampling using transfer learning 
 # model = Resnet18_Transfer() # learning rate:
-model = Resnet18_Transfer() # learning rate:
+# model = Resnet18_Transfer() # learning rate:
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
-# model = Resnet50_Deconv() # learning rate:
+model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
 # model = Resnet18_Dilated() # learning rate:
