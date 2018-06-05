@@ -18,7 +18,8 @@ from PIL import Image
 
 CUDA_VISIBLE_DEVICES = 0,1
 
-accuracies = np.array([])
+train_accuracies = np.array([])
+val_accuracies = np.array([])
 losses = np.array([])
 index = 0
 
@@ -62,30 +63,31 @@ def create_optimizer(model, hp):
 
 
 def check_accuracy(loader, model, save_flag):
-    global index
-    global accuracies
+    global train_accuracies
+    global val_accuracies
     if loader.dataset.train:
+        print('')
         print('Checking accuracy on train set')
     else:
+        print('')
         print('Checking accuracy on validation set')   
     num_correct = 0
     num_samples = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
-#         trainset_loader.update_iterator()
-#         x, y = trainset_loader.get_images();
         for t, (x, y) in enumerate(loader):
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
             y *= 255
+            y[y == 255] = 0
+            
             preds = model(x)
             if device == torch.device('cuda'):
                 preds = preds.cuda()
-            preds = ConvertOutputToLabels(preds)
-            if device == torch.device('cuda'):
                 y = y.cuda()
+            preds = ConvertOutputToLabels(preds)
             y = y.squeeze()
-    #             print(np.unique(np.asarray(preds)), np.unique(np.asarray(y)))
+            
             plus_num_correct = (preds.type_as(y) == y).sum()
             plus_num_samples = y.numel()
             num_correct += plus_num_correct
@@ -93,8 +95,8 @@ def check_accuracy(loader, model, save_flag):
             current_acc = float(plus_num_correct) / plus_num_samples
             im_np = np.asarray( preds, dtype="int8" )
             
-            
-            if save_flag and current_acc * 100 > 85:
+            # Save images
+            if save_flag and current_acc * 100 > 50 and loader.dataset.train:
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save("Pred" + str(t)+".png")
@@ -102,51 +104,49 @@ def check_accuracy(loader, model, save_flag):
                 im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
                 im_label.save("Pred" + str(t)+"_label.png")
                 del im_np, im, im_label_np, im_label
-            print('in loop (%.2f)', current_acc * 100)
+            print('Batch %d: %.2f' % (t, current_acc * 100))
+            
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
-        index += 1
-        accuracies = np.append(accuracies, acc)
-        if index % 10 == 0:
-            np.save('Accuracies.npy', accuracies)
+        
+        if loader.dataset.train:
+            train_accuracies = np.append(train_accuracies, acc)
+        else: 
+            val_accuracies = np.append(val_accuracies, acc)
         
         
         
 def train(model, create_optimizer, epochs=1):
-    global index
     global losses
+    global train_accuracies
+    global val_accuracies
     optimizer = create_optimizer(model, hp)
     model.train()  # put model to training mode
     
-    print('start training ')
     if hp.num_epochs:
         epochs = hp.num_epochs
     for e in range(epochs):
-#         trainset.update_iterator()
-#         x, y = trainset_loader.get_images();
+        
+        print("")
+        print("STARTING EPOCH %d" % e)
+        print("")
         for t, (x, y) in enumerate(trainset_loader):
             x = x.to(device=device, dtype=hp.dtype)  # move to device, e.g. GPU
             y = y.to(device=device, dtype=hp.dtype)
             y *= 255
-            y[y==255] = 0
+            y[y == 255] = 0
             x = x.cuda()
             y = y.cuda()
-            print("here")
-            y, weights = ConvertCELabels(y)
+            y = ConvertCELabels(y)
             if device == torch.device('cuda'):
                 y = y.cuda()
-                weights = weights.cuda()
+                weights = hp.weights.cuda()
                 scores = model(x).cuda()
 
             if hp.loss_type == "full":
                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
                 loss = loss_func(scores, y)
                 losses = np.append(losses, loss.data.item())
-                if index % 10 == 0:
-                    np.save('Losses.npy', losses)
-                    
-                
-    #             print(scores)
 
             # Zero out all of the gradients for the variables which the optimizer
             # will update.
@@ -162,9 +162,17 @@ def train(model, create_optimizer, epochs=1):
 
             if t % hp.print_every == 0:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
-                check_accuracy(valset_loader, model, True)
+                check_accuracy(trainset_loader, model, True)
+                check_accuracy(valset_loader, model, False)
                 print()
+                
+        np.save('Losses.npy', losses)
+        np.save('Train_Accuracies.npy', train_accuracies)
+        np.save('Val_Accuracies.npy', val_accuracies)
 
+        
+        
+        
 ## Define models 
 
 ## barebone model
@@ -175,12 +183,12 @@ def train(model, create_optimizer, epochs=1):
 # model = Resnet50_8s() # learning rate:
 
 ## Resnet with upsampling using transfer learning 
-# model = Resnet18_Transfer() # learning rate:
-# model = Resnet18_Transfer() # learning rate:
+model = Resnet18_Transfer() # learning rate:
+# model = Resnet50_Transfer() # learning rate:
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
-model = Resnet50_Deconv() # learning rate:
+# model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
 # model = Resnet18_Dilated() # learning rate:

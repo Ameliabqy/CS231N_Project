@@ -14,11 +14,6 @@ import gc
 
 import matplotlib.pyplot as plt
 
-class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
-weights = torch.ones(class_defines.shape, dtype=torch.float32)
-# weights *= 5
-weights[0] = 1
-
 
 class HyperParameters:
     """
@@ -34,22 +29,27 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 5e-3 #9e-3 resnet18 SGD
+        self.learning_rate = 5e-4 #9e-3 resnet18 SGD
+        self.weight_decay = 1e-4
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
         self.momentum = 0.8
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 100  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 100  
+        self.num_minibatches = 2 # Total data to train on = num_minibatches*batch_size
+        
+        self.class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
+        self.weights = torch.ones(self.class_defines.shape, dtype=torch.float32)
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
         self.batch_size = 50
-        self.num_files_to_load = self.num_epochs * self.batch_size
+        self.num_files_to_load = self.num_minibatches * self.batch_size
         
         self.num_classes = 35  # This value is probably wrong
-        self.print_every = 3
+        self.print_every = 1
         self.show_every = 5
 
         # Graph saving params
@@ -97,7 +97,7 @@ class CVPR(Dataset):
                 if len(self.filenames) >= hp.num_files_to_load: 
                     break
             else:
-                if len(self.filenames) >= hp.batch_size * 10: 
+                if len(self.filenames) >= hp.batch_size * 5: 
                     break
 #         self.labels = []
 #         self.images = []
@@ -200,15 +200,46 @@ class CVPR(Dataset):
         self.labels = []
 
 
-# takes tensor of size N x C x H x W, 
-def ConvertLabels(labels):
-    N, _, H, W = labels.shape
-    C = 35
-    converted_labels = torch.zeros([N, C, H, W], dtype=torch.int64)
-    for i in range(C):
-        mask = torch.eq(labels.type_as(class_defines), class_defines[i])
-        converted_labels[:, i, :, :] = mask.view(N, H, W)
-    return converted_labels
+        
+        
+# class ToByteTensor(object):
+#     """Convert a ``PIL.Image`` to tensor.
+
+#     Converts a PIL.Image or numpy.ndarray (H x W x C) in the range
+#     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+#     """
+
+#     def __call__(self, pic):
+#         """
+#         Args:
+#             pic (PIL.Image or numpy.ndarray): Image to be converted to tensor.
+
+#         Returns:
+#             Tensor: Converted image.
+#         """
+
+#         # handle PIL Image
+
+#         img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+#         # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
+#         nchannel = len(pic.mode)
+        
+#         img = img.view(pic.size[1], pic.size[0], nchannel)
+#         # put it from HWC to CHW format
+#         # yikes, this transpose takes 80% of the loading time/CPU
+#         img = img.transpose(0, 1).transpose(0, 2).contiguous()
+#         return img        
+        
+        
+# # takes tensor of size N x C x H x W, 
+# def ConvertLabels(labels):
+#     N, _, H, W = labels.shape
+#     C = 35
+#     converted_labels = torch.zeros([N, C, H, W], dtype=torch.int64)
+#     for i in range(C):
+#         mask = torch.eq(labels.type_as(hp.class_defines), hp.class_defines[i])
+#         converted_labels[:, i, :, :] = mask.view(N, H, W)
+#     return converted_labels
        
     
 # converts output of forward pass to label format
@@ -219,7 +250,7 @@ def ConvertOutputToLabels(output):
     output = torch.argmax(output, dim=1)
     converted_output = torch.zeros(output.shape, dtype=torch.int64)
     for c in range(C):
-        converted_output[output == c] = class_defines.data[c]
+        converted_output[output == c] = hp.class_defines.data[c]
     return converted_output
     
     
@@ -231,10 +262,10 @@ def ConvertCELabels(labels):
 #     print(labels.max())
     converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
     for c in range(C):
-        mask = torch.eq(labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
+        mask = torch.eq(labels.type_as(hp.class_defines), hp.class_defines[c]).type_as(hp.class_defines)
         if c == 0:
-            weights[0] = 1 - float(mask.sum())/N/H/W
+            hp.weights[0] = 1 - float(mask.sum())/N/H/W
         converted_labels += mask.view(N, H, W) * c
-    return converted_labels, weights
+    return converted_labels
         
  
