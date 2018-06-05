@@ -18,7 +18,10 @@ if __name__ == '__main__':
     for file in os.listdir(new_directory):
         filename = os.fsdecode(file)
         if filename.endswith(".jpg"): 
-            os.remove(os.path.join(image, filename[:]))
+            try:
+                os.remove(os.path.join(image, filename[:]))
+            except:
+                pass
         else:
             continue
             

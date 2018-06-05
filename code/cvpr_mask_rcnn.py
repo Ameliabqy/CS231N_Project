@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,9 +13,7 @@ import gc
 
 import matplotlib.pyplot as plt
 
-class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
-weights = torch.ones(class_defines.shape, dtype=torch.float32)
-weight_factor = 0.9
+class_defines = np.array([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = np.int32)
 
 class HyperParameters:
     """
@@ -27,36 +24,34 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float
-        self.train_root = '../data/cropped_train_color'
-        self.val_root = '../data/cropped_val_color'
+        self.train_root = '../../../CS231N_Project/data/cropped_train_color'
+        self.val_root = '../../../CS231N_Project/data/cropped_val_color'
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 1.2e-3 #9e-3 resnet18 SGD
-        self.lr_decay = 0.99
+        self.learning_rate = 5e-4 #9e-3 resnet18 SGD
+        self.lr_decay = 0.9
         self.loss_type = "full"  # options: "fast", "full"
-        self.momentum = 0.9
+        self.momentum = 0.99
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 50  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 100  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
-        self.batch_size = 50
+        self.batch_size = 100
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong
         self.print_every = 3
         self.show_every = 5
-        self.save_every = self.num_epochs
 
         # Graph saving params
         self.save_model = True
         self.use_saved_model = False
     
 hp = HyperParameters()
-
 
 class CVPR(Dataset):
     """
@@ -78,6 +73,10 @@ class CVPR(Dataset):
         self.images = None
         self.labels = None
         self.filenames = []
+        self.id_map = {}
+        self.image_ids = []
+        self.image_info = {0:{'source': 'none'}}
+        self.source_class_ids = {'none':0}
         if train_sel:
             self.root = hp.train_root
             self.train = True
@@ -85,26 +84,30 @@ class CVPR(Dataset):
             self.root = hp.val_root
             self.train = False
         self.transform = transform
+        self.num_classes = 35
 
         # read filenames
         filenames = glob.glob(osp.join(self.root, '*.jpg'))
+        t = 0
         for fn in filenames:
             lbl = fn[:-4] + '_instanceIds.png'
             lbl = lbl.replace('color', 'label')
             self.filenames.append((fn, lbl)) # (filename, label) pair
             if train_sel:
+                self.id_map[fn] = t
+                t += 1
                 if len(self.filenames) >= hp.num_files_to_load: 
                     break
             else:
                 if len(self.filenames) >= hp.batch_size * 10: 
                     break
-#         self.labels = []
-#         self.images = []
-        # if preload dataset into memory
-        if hp.preload:
-            self._preload()
-            
+        self.labels = []
+        self.images = []
+        self._preload()
+        
         self.len = len(self.filenames)
+        self.image_ids = [0] * self.len
+        
                               
     def _preload(self):
         """
@@ -122,26 +125,13 @@ class CVPR(Dataset):
             self.labels.append(label.copy())
             label.close()
 
-    def __getitem__(self, index):
+    def load_image(self, filename):
         """ Get a sample from the dataset
         """
-        if self.images is not None:
-            # If dataset is preloaded
-            image = self.images[index]
-            label = self.labels[index]
-        else:
-            # If on-demand data loading
-            image_fn, label = self.filenames[index]
-            image = Image.open(image_fn)
-            label = Image.open(label)
-            
-        # May use transform function to transform samples
-        # e.g., random crop, whitening
-        if self.transform is not None:
-            image = self.transform(image)
-            label = self.transform(label)
-        # return image and label
-        return image, label
+        image = self.images[filename]
+        image = np.asarray(image)
+        # return image
+        return image
 
     def __len__(self):
         """
@@ -179,30 +169,15 @@ class CVPR(Dataset):
         gc.collect()
         self.batch_num += 1
         
-    def get_images(self):
-        return self.images, self.labels
+    def load_mask(self, image_id):
+        y = np.asarray(self.labels[image_id], dtype = np.int32)
+        mask = ConvertCELabels(y)
+        mask = np.asarray(mask)
 
-    def normalize_image(self, image):
-        # Normalize the data: subtract the mean pixel and divide by std
-        mean_pixel = image.mean(keepdims=True)
-        std_pixel = image.std(keepdims=True)
-        image = (image - mean_pixel) / std_pixel
-        return image
-    
-    def reset_data_set(self):
-        self.batch_num = 0
-        np.random.shuffle(self.bfilenames)
-        del self.images
-        del self.labels
-        gc.collect()
-        self.images = []
-        self.labels = []
-
-def Crop(x, lim_indices):
-    hmin, hmax, wmin, wmax = lim_indices
-    x.data = x.data[:,:,hmin : hmax, wmin : wmax]
-    return x
-
+        # Return mask, and array of class IDs of each instance. Since we have
+        # one class ID only, we return an array of 1s
+        return mask, class_defines
+        
 
 # takes tensor of size N x C x H x W, 
 def ConvertLabels(labels):
@@ -229,39 +204,11 @@ def ConvertOutputToLabels(output):
     
 # makes labels for training with cross entropy loss
 # takes tensor of size N x 1 x H x W with numbers for classes, changes those numbers to classification indices
-def ConvertCELabels(labels):
-    N, _, H, W = labels.shape
+def ConvertCELabels(label):
+    H, W = label.shape
     C = 35
-#     print(labels.max())
-    converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
+    mask = np.ones((H, W, C), dtype=bool)
     for c in range(C):
-        mask = torch.eq(labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
-        if c == 0:
-            weights[0] = (1 - float(mask.sum())/N/H/W) * weight_factor
-            print(weights[0])
-        converted_labels += mask.view(N, H, W) * c
-    return converted_labels, weights
-
-
-# makes reverted labels for training with cross entropy loss
-def ReverseConvertCELabels(labels):
-    N, C, H, W = labels.shape
-    converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
-    for c in range(C):
-        converted_labels[:, 0, :, :] += torch.eq(labels, c).type_as(class_defines) * class_defines[c] * 1000
-    unlabeled = converted_labels == 0
-    converted_labels += unlabeled.type_as(converted_labels) * 255
-    return converted_labels
-    
-    
-# DEPRECATED: converts back to instance id's but not needed now after labels are already converted to non-instance pixels
-def ReverseConvertLabels(labels):
-    N, C, H, W = labels.shape
-    converted_labels = torch.zeros([N, 1, H, W], dtype=torch.int64)
-    for i in range(C):
-        converted_labels[:, 0, :, :] += labels[:, i, :, :].type_as(class_defines) * class_defines[i] * 1000
-#     unlabeled = converted_labels == 0
-#     converted_labels += unlabeled.type_as(converted_labels) * 255
-    return converted_labels
-        
- 
+        mask_c = np.equal(label, class_defines[c])
+        mask[:, :, c] = mask_c
+    return mask

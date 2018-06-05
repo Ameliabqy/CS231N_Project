@@ -4,6 +4,8 @@ from models.ResNet import *
 from models.ResNet_Transfer import * 
 from models.ResNet_Deconv import * 
 from models.ResNet_Dilated import * 
+from models.DRN import * 
+from loss_function import CrossEntropyLoss2d
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,6 +40,9 @@ valset = CVPR(hp,
     preload=False, transform=transforms.ToTensor(), train_sel = False)
 # Use the torch dataloader to iterate through the dataset
 valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=False, num_workers=1)
+
+loss_to_plot = []
+accuracy_to_plot = []
 
 # data = np.asarray( trainset.labels[0], dtype="float32" )
 # print(data.max())
@@ -114,6 +119,7 @@ def check_accuracy(loader, model, save_flag):
                 del im_np, im, im_label_np, im_label
             print('in loop (%.2f)', current_acc * 100)
         acc = float(num_correct) / num_samples
+        accuracy_to_plot.append(acc * 100)
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
         
         
@@ -135,6 +141,7 @@ def train(model, create_optimizer, epochs=1):
             y[y==255] = 0
             x = x.cuda()
             y = y.cuda()
+            print('here')
             y, weights = ConvertCELabels(y)
             if device == torch.device('cuda'):
                 y = y.cuda()
@@ -142,7 +149,8 @@ def train(model, create_optimizer, epochs=1):
                 scores = model(x).cuda()
 
             if hp.loss_type == "full":
-                loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
+#                 loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
+                loss_func = CrossEntropyLoss2d(weight = weights)
                 loss = loss_func(scores, y)
     #             print(scores)
 
@@ -157,11 +165,16 @@ def train(model, create_optimizer, epochs=1):
             # Actually update the parameters of the model using the gradients
             # computed by the backwards pass.
             optimizer.step()
+            
+            loss_to_plot.append(loss.item())
 
             if t % hp.print_every == 0:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
                 check_accuracy(valset_loader, model, True)
                 print()
+            if t % hp.save_every == 0:
+                np.save('accuracy.npy', np.asarray(accuracy_to_plot))
+                np.save('loss.npy', np.asarray(loss_to_plot))
 
 ## Define models 
 
@@ -174,15 +187,18 @@ def train(model, create_optimizer, epochs=1):
 
 ## Resnet with upsampling using transfer learning 
 # model = Resnet18_Transfer() # learning rate:
-# model = Resnet18_Transfer() # learning rate:
+model = Resnet50_Transfer() # learning rate:
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
 # model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
-model = Resnet18_Dilated() # learning rate:
+# model = Resnet18_Dilated() # learning rate:
 # model = Resnet50_Dilated() # learning rate:
+
+## DRN models
+# model = DRN_A()
 model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 

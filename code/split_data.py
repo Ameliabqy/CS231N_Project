@@ -13,7 +13,7 @@ import os.path as osp
 import glob
 import subprocess as sp
 
-root = '../data/cvpr-2018-autonomous-driving/'
+root = '../data/'
 ret = sp.call(['test', '-d', osp.join(root, 'val_color')])
 
 if not ret:
