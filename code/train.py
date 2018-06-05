@@ -4,6 +4,7 @@ from models.ResNet import *
 from models.ResNet_Transfer import * 
 from models.ResNet_Deconv import * 
 from models.ResNet_Dilated import * 
+# from stos_net import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -66,13 +67,13 @@ def create_optimizer(model, hp):
     
     optimizer = None
     if hp.optimizer == "Adam":    
-        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
     if hp.optimizer == "AdaGrad":
         optimizer = torch.optim.Adagrad(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=hp.learning_rate, weight_decay=hp.lr_decay)
+        optimizer = torch.optim.SGD(model.parameters(), momentum=hp.momentum, lr=hp.learning_rate, weight_decay=hp.weight_decay, nesterov=hp.use_Nesterov)
     if hp.optimizer == "RMSProp":
-        optimizer = torch.optim.RMSProp(model.parameters(), lr=hp.learning_rate, weight_decay=hp.lr_decay, momentum=hp.momentum, eps=1e-10)
+        optimizer = torch.optim.RMSProp(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay, momentum=hp.momentum, eps=1e-10)
     
     return optimizer
 
@@ -184,7 +185,9 @@ def train(model, create_optimizer, epochs=1):
 
 ## Resnet with upsampling using transfer learning 
 # model = Resnet18_Transfer() # learning rate:
-model = Resnet18_Transfer() # learning rate:
+# model = Resnet50_Deconv() # learning rate:
+model = Resnet50_Transfer()
+# model = Stos_Net()
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:

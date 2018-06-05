@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
 weights = torch.ones(class_defines.shape, dtype=torch.float32)
+weights[0] = 0.0001
 
 
 class HyperParameters:
@@ -32,10 +33,11 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "SGD" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 5e-4 #9e-3 resnet18 SGD
+        self.learning_rate = 5e-3
         self.lr_decay = 0.99
+        self.weight_decay = 5e-4
         self.loss_type = "full"  # options: "fast", "full"
-        self.momentum = 0.9
+        self.momentum = 0.95
         self.use_Nesterov = True
         self.init_scale = 3.0
         self.num_epochs = 20  # Total data to train on = num_epochs*batch_size
@@ -235,8 +237,8 @@ def ConvertCELabels(labels):
     converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
     for c in range(C):
         mask = torch.eq(labels.type_as(class_defines), class_defines[c]).type_as(class_defines)
-        if c == 0:
-            weights[0] = 1 - float(mask.sum())/N/H/W
+#         if c == 0:
+#             weights[0] = 1 - float(mask.sum())/N/H/W
         converted_labels += mask.view(N, H, W) * c
     return converted_labels, weights
 

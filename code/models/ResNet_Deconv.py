@@ -76,10 +76,14 @@ class Resnet50_Deconv(nn.Module):
         # Load the pretrained weights, remove avg pool
         # layer and get the output stride of 8
         self.resnet50 = torchvision.models.resnet50(pretrained=True)
+        
+#         for param in model.parameters():
+#             param.requires_grad = False
+            
         self.layer4 = torchvision.models.resnet50(pretrained=False).layer4
-        self.layer4=nn.Sequential(*self.layer4)
+        self.layer4 = nn.Sequential(*self.layer4)
                 
-        self.score_32s = nn.Conv2d(2048 ,
+        self.score_32s = nn.Conv2d(2048,
                                    num_classes,
                                    kernel_size=1)
         
@@ -91,8 +95,15 @@ class Resnet50_Deconv(nn.Module):
                                    num_classes,
                                    kernel_size=1)
         
+        
         self.deconv1 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.score_8s = nn.Conv2d(512,
+                           num_classes,
+                           kernel_size=1)
         self.deconv2 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=2, padding=1)
+        self.score_8s = nn.Conv2d(512,
+                           num_classes,
+                           kernel_size=1)
         self.deconv3 = nn.ConvTranspose2d(num_classes, num_classes, 3, stride=8, padding=1)
         
         
@@ -102,6 +113,7 @@ class Resnet50_Deconv(nn.Module):
         
         x = self.resnet50.conv1(x)
         x = self.resnet50.bn1(x)
+        
         x = self.resnet50.relu(x)
         x = self.resnet50.maxpool(x)
 
