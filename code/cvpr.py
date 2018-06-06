@@ -38,12 +38,12 @@ class HyperParameters:
         self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 50  # Total data to train on = num_epochs*batch_size
+        self.num_epochs = 10000  # Total data to train on = num_epochs*batch_size
         
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
-        self.batch_size = 50
+        self.batch_size = 2
         self.num_files_to_load = self.num_epochs * self.batch_size
         
         self.num_classes = 20  # This value is probably wrong

@@ -187,7 +187,7 @@ def train(model, create_optimizer, epochs=1):
 
 ## Resnet with upsampling using transfer learning 
 # model = Resnet18_Transfer() # learning rate:
-model = Resnet50_Transfer() # learning rate:
+# model = Resnet50_Transfer() # learning rate:
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
@@ -198,7 +198,7 @@ model = Resnet50_Transfer() # learning rate:
 # model = Resnet50_Dilated() # learning rate:
 
 ## DRN models
-# model = DRN_A()
+model = DRN_A()
 model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 
