@@ -29,15 +29,15 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 5e-5 # 1e-4 works well
+        self.learning_rate = 4e-6 #9e-3 resnet18 SGD
         self.weight_decay = 1e-5
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
-        self.momentum = 0.9
+        self.momentum = 0.7
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 100  
-        self.num_minibatches = 10 # Total data to train on = num_minibatches*batch_size
+        self.num_epochs = 500  
+        self.num_minibatches = 2 # Total data to train on = num_minibatches*batch_size
         
         self.class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
         self.weights = torch.ones(self.class_defines.shape, dtype=torch.float32)
@@ -45,7 +45,7 @@ class HyperParameters:
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
-        self.batch_size = 10
+        self.batch_size = 25
         self.num_files_to_load = self.num_minibatches * self.batch_size
         
         self.num_classes = 35  
@@ -268,7 +268,7 @@ def ConvertCELabels(labels):
         mask = torch.eq(labels.type_as(hp.class_defines), hp.class_defines[c]).type_as(hp.class_defines)
         if c == 0:
             hp.weights[0] = 0.1*(1 - float(mask.sum())/N/H/W)
-            print(hp.weights[0])
+#             print(hp.weights[0])
         converted_labels += mask.view(N, H, W) * c
     return converted_labels
         

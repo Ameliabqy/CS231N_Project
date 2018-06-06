@@ -17,7 +17,7 @@ import numpy as np
 from PIL import Image
 import datetime
 
-CUDA_VISIBLE_DEVICES = 0,1
+CUDA_VISIBLE_DEVICES = 0,1,2,3,4,5,6,7
 
 train_accuracies = np.array([])
 val_accuracies = np.array([])
@@ -51,7 +51,7 @@ def create_optimizer(model, hp):
     
     optimizer = None
     if hp.optimizer == "Adam":    
-        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
     if hp.optimizer == "AdaGrad":
         optimizer = torch.optim.Adagrad(model.parameters(), lr=hp.learning_rate)
     if hp.optimizer == "SGD":
@@ -97,13 +97,17 @@ def check_accuracy(loader, model, save_flag):
             im_np = np.asarray( preds, dtype="int8" )
             
             # Save images
-            if save_flag and current_acc * 100 > 1 and loader.dataset.train:
+            if save_flag and current_acc * 100 > 1: 
+                if loader.dataset.train:
+                    imstr = 'Pred'
+                else:
+                    imstr = 'PredVal'
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
-                im.save("Pred" + str(t)+".png")
+                im.save(imstr + str(t)+".png")
                 im_label_np = np.asarray( y, dtype="int8" )
                 im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
-                im_label.save("Pred" + str(t)+"_label.png")
+                im_label.save(imstr + str(t)+"_label.png")
                 del im_np, im, im_label_np, im_label
             print('Batch %d: %.2f' % (t, current_acc * 100))
             
@@ -188,15 +192,15 @@ def train(model, create_optimizer, epochs=1):
 # model = Resnet50_8s() # learning rate:
 
 ## Resnet with upsampling using transfer learning 
-if hp.model_name == 'Resnet18_Transfer':
-    model = Resnet18_Transfer()
-if hp.model_name == 'Resnet50_Transfer':
-    model = Resnet50_Transfer()
+# if hp.model_name == 'Resnet18_Transfer':
+#     model = Resnet18_Transfer()
+# if hp.model_name == 'Resnet50_Transfer':
+#     model = Resnet50_Transfer()
     
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
-# model = Resnet50_Deconv() # learning rate:
+model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
 # model = Resnet18_Dilated() # learning rate:
