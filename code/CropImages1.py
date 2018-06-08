@@ -31,17 +31,17 @@ def convert_labels(label_path):
  
 if __name__ == '__main__':
     root = '../data/'
-    image = '../data/cropped_val_color'
-    image_label = '../data/cropped_val_label'
-    saved_location = image.replace('cropped_val_color', 'cropped_val_color2/')
-    saved_location_label = image.replace('cropped_val_color', 'cropped_val_label2/')
+    image = '../data/cropped_train_color'
+    image_label = '../data/cropped_train_label'
+    saved_location = image.replace('cropped_train_color', 'cropped_train_color2/')
+    saved_location_label = image.replace('cropped_train_color', 'cropped_train_label2/')
     
     print ("Creating folders")
-    sp.call(['mkdir', osp.join(root, 'cropped_val_color2')])
-    sp.call(['mkdir', osp.join(root, 'cropped_val_label2')])
+    sp.call(['mkdir', osp.join(root, 'cropped_train_color2')])
+    sp.call(['mkdir', osp.join(root, 'cropped_train_label2')])
     
-    directory = os.fsencode('../data/cropped_val_color')
-    new_directory = os.fsencode('../data/cropped_val_color2')
+    directory = os.fsencode('../data/cropped_train_color')
+    new_directory = os.fsencode('../data/cropped_train_color2')
     index = 0
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
@@ -49,13 +49,13 @@ if __name__ == '__main__':
             label_filename = filename[:-4] + '_instanceIds.png'
             label = Image.open(os.path.join(image_label, label_filename))
             label2np = np.asarray(label, dtype="int32" )
-#             if np.unique(label2np).shape[0] > 1:
-#                 choice = random.choice(np.delete(np.unique(label2np), 0))
-# #                 print(choice)
-#                 indices = np.where(label2np == choice)
-#                 y = indices[0][0]
-#                 x = indices[1][0]
-            crop_coord = (128, 128, 256, 256)
+            if np.unique(label2np).shape[0] > 1:
+                choice = random.choice(np.delete(np.unique(label2np), 0))
+#                 print(choice)
+                indices = np.where(label2np == choice)
+                y = indices[0][0]
+                x = indices[1][0]
+            crop_coord = (min(x - random.randint(30, 100), 0), min(y - x - random.randint(30, 100), 0), max(x - random.randint(30, 100), 384), max(y + random.randint(30, 100), 384))
             crop(os.path.join(image, filename), crop_coord, os.path.join(saved_location, filename))
             crop(os.path.join(image_label, label_filename), crop_coord, os.path.join(saved_location_label, label_filename))
 #             convert_labels(os.path.join(saved_location_label, label_filename))

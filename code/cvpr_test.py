@@ -25,8 +25,7 @@ class HyperParameters:
     def __init__(self):
         # General params
         self.dtype = torch.float
-        self.train_root = '../data/cropped_train_color'
-        self.val_root = '../data/cropped_val_color'
+        self.root = '../data/cropped_test_color'
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
@@ -64,13 +63,13 @@ class HyperParameters:
 hp = HyperParameters()
 
 
-class CVPR(Dataset):
+class CVPR_test(Dataset):
     """
     A customized data loader for CVPR.
     """
     def __init__(self, hp,
                  transform=None,
-                 preload=False, train_sel = True):
+                 preload=False):
         """ Intialize the CVPR dataset
         
         Args:
@@ -84,27 +83,15 @@ class CVPR(Dataset):
         self.images = None
         self.labels = None
         self.filenames = []
-        if train_sel:
-            self.root = hp.train_root
-            self.train = True
-        else:
-            self.root = hp.val_root
-            self.train = False
+        self.root = hp.root
         self.transform = transform
 
         # read filenames
         filenames = glob.glob(osp.join(self.root, '*.jpg'))
-        random.shuffle(filenames)
         for fn in filenames:
             lbl = fn[:-4] + '_instanceIds.png'
             lbl = lbl.replace('color', 'label')
             self.filenames.append((fn, lbl)) # (filename, label) pair
-            if train_sel:
-                if len(self.filenames) >= hp.num_files_to_load: 
-                    break
-            else:
-                if len(self.filenames) >= hp.batch_size * 5: 
-                    break
 #         self.labels = []
 #         self.images = []
         # if preload dataset into memory
