@@ -29,15 +29,15 @@ class HyperParameters:
         
         # Training params
         self.optimizer = "Adam" # options: SGD, RMSProp, Adam, Adagrad
-        self.learning_rate = 4e-6 #9e-3 resnet18 SGD
+        self.learning_rate = 4e-5 #9e-3 resnet18 SGD
         self.weight_decay = 1e-5
         self.lr_decay = 0.99
         self.loss_type = "full"  # options: "fast", "full"
-        self.momentum = 0.7
+        self.momentum = 0.9
         self.use_Nesterov = True
         self.init_scale = 3.0
-        self.num_epochs = 500  
-        self.num_minibatches = 2 # Total data to train on = num_minibatches*batch_size
+        self.num_epochs = 1  
+        self.num_minibatches = 1 # Total data to train on = num_minibatches*batch_size
         
         self.class_defines = torch.tensor([0, 1, 17, 33, 34, 35, 36, 37, 38, 39, 40, 49, 50, 65, 66, 67, 81, 82, 83, 84, 85, 86, 97, 98, 99, 100, 113, 161, 162, 163, 164, 165, 166, 167, 168], dtype = torch.int64)
         self.weights = torch.ones(self.class_defines.shape, dtype=torch.float32)
@@ -45,17 +45,17 @@ class HyperParameters:
         # Data loader params
         self.shuffle_data = True  # Currently doesn't do anything
         self.preload = False
-        self.batch_size = 25
+        self.batch_size = 20
         self.num_files_to_load = self.num_minibatches * self.batch_size
         
         self.num_classes = 35  
-        self.print_every = 1
+        self.print_every = 40
         self.show_every = 5
         
 
         # Graph saving params
         self.save_model = True
-        self.save_every = 10
+        self.save_every = 20
         self.model_name = 'Resnet50_Transfer'
         self.use_saved_model = False
     
@@ -100,7 +100,7 @@ class CVPR(Dataset):
                 if len(self.filenames) >= hp.num_files_to_load: 
                     break
             else:
-                if len(self.filenames) >= hp.batch_size * 5: 
+                if len(self.filenames) >= hp.batch_size * 20: 
                     break
 #         self.labels = []
 #         self.images = []
@@ -264,10 +264,11 @@ def ConvertCELabels(labels):
     C = 35
 #     print(labels.max())
     converted_labels = torch.zeros([N, H, W], dtype=torch.int64)
+    
     for c in range(C):
         mask = torch.eq(labels.type_as(hp.class_defines), hp.class_defines[c]).type_as(hp.class_defines)
-        if c == 0:
-            hp.weights[0] = 0.1*(1 - float(mask.sum())/N/H/W)
+#         if c == 0:
+#             hp.weights[0] = 1 - float(mask.sum())/N/H/W
 #             print(hp.weights[0])
         converted_labels += mask.view(N, H, W) * c
     return converted_labels

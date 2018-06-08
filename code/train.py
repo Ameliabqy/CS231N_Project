@@ -17,12 +17,11 @@ import numpy as np
 from PIL import Image
 import datetime
 
-CUDA_VISIBLE_DEVICES = 0,1,2,3,4,5,6,7
+CUDA_VISIBLE_DEVICES = 0,1,2,3
 
 train_accuracies = np.array([])
 val_accuracies = np.array([])
 losses = np.array([])
-index = 0
 
 # Use GPU if available, otherwise stick with cpu
 use_cuda = torch.cuda.is_available()
@@ -45,6 +44,20 @@ valset = CVPR(hp,
 valset_loader = DataLoader(valset, batch_size=hp.batch_size, shuffle=True, num_workers=1)
 
 
+
+        
+        
+def save_checkpoint(checkpoint_path, model, optimizer):
+    state = {'state_dict': model.state_dict(),
+             'optimizer' : optimizer.state_dict()}
+    torch.save(state, checkpoint_path)
+    print('model saved to %s' % checkpoint_path)
+    
+def load_checkpoint(checkpoint_path, model, optimizer):
+    state = torch.load(checkpoint_path)
+    model.load_state_dict(state['state_dict'])
+    optimizer.load_state_dict(state['optimizer'])
+    print('model loaded from %s' % checkpoint_path)
 
 
 def create_optimizer(model, hp):
@@ -100,16 +113,25 @@ def check_accuracy(loader, model, save_flag):
             if save_flag and current_acc * 100 > 1: 
                 if loader.dataset.train:
                     imstr = 'Pred'
+                    xstr = 'Orig'
                 else:
                     imstr = 'PredVal'
+                    xstr = 'OrigVal'
+                    
+                torchvision.utils.save_image(x[1, :, :, :], xstr + str(t)+".png")
+                
                 im_np = np.asarray( preds, dtype="int8" )
                 im = Image.fromarray(im_np[1, :, :].squeeze(), mode = "P")
                 im.save(imstr + str(t)+".png")
+                
                 im_label_np = np.asarray( y, dtype="int8" )
                 im_label = Image.fromarray(im_label_np[1, :, :].squeeze(), mode = "P")
                 im_label.save(imstr + str(t)+"_label.png")
+                
                 del im_np, im, im_label_np, im_label
             print('Batch %d: %.2f' % (t, current_acc * 100))
+            if t > 10:
+                break
             
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
@@ -126,6 +148,7 @@ def train(model, create_optimizer, epochs=1):
     global train_accuracies
     global val_accuracies
     optimizer = create_optimizer(model, hp)
+    load_checkpoint('saved_model__Resnet50_Transfer__05AM_June_07.pt', model, optimizer)
     model.train()  # put model to training mode
     
     if hp.num_epochs:
@@ -149,9 +172,27 @@ def train(model, create_optimizer, epochs=1):
                 scores = model(x).cuda()
 
             if hp.loss_type == "full":
-                loss_func = F.torch.nn.CrossEntropyLoss(weight=weights)
+                loss_func = F.torch.nn.CrossEntropyLoss(weight=weights, reduce=False)
                 loss = loss_func(scores, y)
-                losses = np.append(losses, loss.data.item())
+            
+            mask = torch.ones(loss.size(), device=device, dtype=hp.dtype)
+            mask *= 0.05 #good results with 0.05
+            
+            for n in range(y.shape[0]):
+                indices = np.argwhere(y[n, :, :] > 0)
+                if indices.numel() > 0:
+                    if indices.shape[1] >= 2:
+                        xmin = torch.min(indices[0, :]).item()
+                        ymin = torch.min(indices[1, :]).item()
+                        xmax = torch.max(indices[0, :]).item()
+                        ymax = torch.max(indices[1, :]).item()
+                        if xmin != xmax and ymin != ymax:
+                            mask[n, xmin:xmax, ymin:ymax] = 1
+                    
+            N, H, W = loss.shape
+
+            loss = torch.sum(torch.mul(loss, mask)) / (N * H * W)
+            losses = np.append(losses, loss.item())
 
             # Zero out all of the gradients for the variables which the optimizer
             # will update.
@@ -168,18 +209,20 @@ def train(model, create_optimizer, epochs=1):
             if t % hp.print_every == 0:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
                 check_accuracy(trainset_loader, model, True)
-                check_accuracy(valset_loader, model, False)
+                check_accuracy(valset_loader, model, True)
                 print()
                 
             if t % hp.save_every == 0:
                 date_string = datetime.datetime.now().strftime("%I%p_%B_%d")
-                torch.save(model, 'saved_model__' + hp.model_name + '__'+ date_string + '.pt')
+                model_string = 'saved_model__' + hp.model_name + '__'+ date_string + '.pt'
+                save_checkpoint(model_string, model, optimizer)
+#                 torch.save(model, 'saved_model__' + hp.model_name + '__'+ date_string + '.pt')
                 
-        np.save('Losses.npy', losses)
-        np.save('Train_Accuracies.npy', train_accuracies)
-        np.save('Val_Accuracies.npy', val_accuracies)
+        np.save('Losses3.npy', losses)
+        np.save('Train_Accuracies3.npy', train_accuracies)
+        np.save('Val_Accuracies3.npy', val_accuracies)
 
-        
+
         
         
 ## Define models 
@@ -191,20 +234,22 @@ def train(model, create_optimizer, epochs=1):
 # model = Resnet18_8s() # learning rate: 
 # model = Resnet50_8s() # learning rate:
 
-## Resnet with upsampling using transfer learning 
-# if hp.model_name == 'Resnet18_Transfer':
-#     model = Resnet18_Transfer()
-# if hp.model_name == 'Resnet50_Transfer':
-#     model = Resnet50_Transfer()
+# Resnet with upsampling using transfer learning 
+if hp.model_name == 'Resnet18_Transfer':
+    model = Resnet18_Transfer()
+if hp.model_name == 'Resnet50_Transfer':
+    model = Resnet50_Transfer()
     
 
 ## Deconvolution upsampling with transfer learning 
 # model = Resnet18_Deconv() # learning rate:
-model = Resnet50_Deconv() # learning rate:
+# model = Resnet50_Deconv() # learning rate:
 
 ## Dilated deconvolution layers with transfer learning 
 # model = Resnet18_Dilated() # learning rate:
 # model = Resnet50_Dilated() # learning rate:
+# model = torch.load('saved_model__Resnet50_Transfer__05AM_June_07.pt', model, )
+# model = model.cuda()
 model = torch.nn.DataParallel(model).cuda()
 train(model, create_optimizer)
 
